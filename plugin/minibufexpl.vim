@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Tuesday, January 22, 2002
-"      Version: 6.0.5
+"  Last Change: Monday, January 28, 2002
+"      Version: 6.0.6
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -86,7 +86,8 @@
 "                     will not.
 "
 "
-"      History: 6.0.5 Fixed an issue with window sizing when we run out of 
+"      History: 6.0.6 Fixed register overwrite bug found by Sébastien Pierre
+"               6.0.5 Fixed an issue with window sizing when we run out of 
 "                     buffers.  Also fixed some weird commenting bugs.
 "                     Added more optional fancy window/buffer navigation:
 "                     o You can turn on the capability to use control and the 
@@ -635,11 +636,15 @@ function! <SID>GetSelectedBuffer()
     return -1
   endif
 
+  let l:save_reg = @"
   let @" = ""
   normal yi[
   if @" != ""
-    return substitute(@",'\([0-9]*\):.*', '\1', '') + 0
+    let l:retv = substitute(@",'\([0-9]*\):.*', '\1', '') + 0
+    let @" = l:save_reg
+    return l:retv
   else
+    let @" = l:save_reg
     return -1
   endif
 
