@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Tuesday, December 18, 2001
-"      Version: 6.0.3
+"  Last Change: Tuesday, January 22, 2002
+"      Version: 6.0.5
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -35,7 +35,7 @@
 "               However, in most cases you won't need any key-bindings at all.
 "
 "               To control where the new split window goes relative to
-"               the current window, use the variable:"
+"               the current window, use the setting:
 "
 "                 let g:miniBufExplSplitBelow=0  " Put new window above
 "                                                " current.
@@ -46,18 +46,61 @@
 "
 "               By default we are now (as of 6.0.2) forcing the -MiniBufExplorer-
 "               window to open up at the edge of the screen. You can turn this 
-"               off by setting the following variable:
+"               off by setting the following variable in your .vimrc:
+"
+"                 let g:miniBufExplSplitToEdge = 0
 "
 "               By default we are now (as of 6.0.1) turning on the MoreThanOne
 "               option. This stops the -MiniBufExplorer- from opening 
 "               automatically until more than one eligible buffer is available.
-"               You can turn this feature off by setting the following variable:
+"               You can turn this feature off by setting the following variable
+"               in your .vimrc:
 "                 
 "                 let g:miniBufExplorerMoreThanOne=0
 "
-"                 let g:miniBufExplSplitToEdge=0
+"               To enable the optional mapping of Control + Vim Direction Keys 
+"               [hjkl] to window movement commands, you can put the following into 
+"               your .vimrc:
 "
-"      History: 6.0.3 Changed buffer name to -MiniBufExplorer- to resolve
+"                 let g:miniBufExplMapWindowNavVim = 1
+"
+"               To enable the optional mapping of Control + Arrow Keys to window 
+"               movement commands, you can put the following into your .vimrc:
+"
+"                 let g:miniBufExplMapWindowNavArrows = 1
+"
+"               To enable the optional mapping of <C-TAB> and <C-S-TAB> to a 
+"               function that will bring up the next or previous buffer in the
+"               current window, you can put the following into your .vimrc:
+"
+"                 let g:miniBufExplMapCTabSwitchBufs = 1
+"
+"               To enable the optional mapping of <C-TAB> and <C-S-TAB> to mappings
+"               that will move to the next and previous (respectively) window, you
+"               can put the following into your .vimrc:
+"
+"                 let g:miniBufExplMapCTabSwitchWindows = 1
+"
+"               NOTE: If you set the ...TabSwitchBufs AND ...TabSwitchWindows, 
+"                     ...TabSwitchBufs will be enabled and ...TabSwitchWIndows 
+"                     will not.
+"
+"
+"      History: 6.0.5 Fixed an issue with window sizing when we run out of 
+"                     buffers.  Also fixed some weird commenting bugs.
+"                     Added more optional fancy window/buffer navigation:
+"                     o You can turn on the capability to use control and the 
+"                       arrow keys to move between windows.
+"                     o You can turn on the ability to use <C-TAB> and 
+"                       <C-S-TAB> to open the next and previous (respectively) 
+"                       buffer in the current window.
+"                     o You can turn on the ability to use <C-TAB> and 
+"                       <C-S-TAB> to switch windows (forward and backwards 
+"                       respectively.)
+"               6.0.4 Added optional fancy window navigation: 
+"                     o Holding down control and pressing a vim direction 
+"                       [hjkl] will switch windows in the indicated direction.
+"               6.0.3 Changed buffer name to -MiniBufExplorer- to resolve
 "                     Issue in filename pattern matching on Windows.
 "               6.0.2 2 Changes requested by Suresh Govindachar
 "                     Added SplitToEdge option and set it on by default
@@ -138,6 +181,77 @@ if !exists('g:miniBufExplSplitToEdge')
 endif
 
 "
+" Global flag to turn extended window navigation commands on or off
+" enabled = 1, dissabled = 0
+"
+if !exists('g:miniBufExplMapWindowNav')
+  " This is for backwards compatibility and may be removed in a
+  " later release, please use the ...NavVim and/or ...NavArrows 
+  " settings.
+  let g:miniBufExplMapWindowNav = 0
+endif
+if !exists('g:miniBufExplMapWindowNavVim')
+  let g:miniBufExplMapWindowNavVim = 0
+endif
+if !exists('g:miniBufExplMapWindowNavArrows')
+  let g:miniBufExplMapWindowNavArrows = 0
+endif
+if !exists('g:miniBufExplMapCTabSwitchBufs')
+  let g:miniBufExplMapCTabSwitchBufs = 0
+endif
+" Notice: that if CTabSwitchBufs is turned on then
+" we turn off CTabSwitchWindows.
+if g:miniBufExplMapCTabSwitchBufs == 1 ||
+   \!exists('g:miniBufExplMapCTabSwitchWindows')
+  let g:miniBufExplMapCTabSwitchWindows = 0
+endif
+
+"
+" If we have enabled control + vim direction key remapping
+" then perform the remapping
+"
+" Notice: I left g:miniBufExplMapWindowNav in for backward
+" compatibility. Eventually this mapping will be removed so
+" please use the newer g:miniBufExplMapWindowNavVim setting.
+if g:miniBufExplMapWindowNavVim || 
+   \g:miniBufExplMapWindowNav
+  noremap <C-J> <C-W>j
+  noremap <C-K> <C-W>k
+  noremap <C-H> <C-W>h
+  noremap <C-L> <C-W>l
+endif
+
+"
+" If we have enabled control + arrow key remapping
+" then perform the remapping
+"
+if g:miniBufExplMapWindowNavArrows
+  noremap <C-Down>  <C-W>j
+  noremap <C-Up>    <C-W>k
+  noremap <C-Left>  <C-W>h
+  noremap <C-Right> <C-W>l
+endif
+
+" If we have enabled <C-TAB> and <C-S-TAB> to switch buffers
+" in the current window then perform the remapping
+"
+if g:miniBufExplMapCTabSwitchBufs
+  noremap <C-TAB>   :call <SID>CycleBuffer(1)<CR>
+  noremap <C-S-TAB> :call <SID>CycleBuffer(0)<CR>
+endif
+
+"
+" If we have enabled <C-TAB> and <C-S-TAB> to switch windows
+" then perform the remapping
+"
+if g:miniBufExplMapCTabSwitchWindows
+  noremap <C-TAB>   <C-W>w
+  noremap <C-S-TAB> <C-W>W
+endif
+
+
+
+"
 " Setup an autocommand group and some autocommands that keep our explorer
 " updated automatically.
 "
@@ -205,9 +319,10 @@ function! <SID>StartExplorer()
   nnoremap <buffer> <down> gj
   nnoremap <buffer> <up> gk
   " The following allows for quicker moving between buffer
-  " names in the [MBE] window
-  nnoremap <buffer> <TAB> W
-  nnoremap <buffer> <S-TAB> B
+  " names in the [MBE] window it also saves the last-pattern
+  " and restores it.
+  nnoremap <buffer> <TAB>   :let g:SaveSearchMBE=@/<CR>:let g:SaveHlsMBE=&hls<CR>:set nohls<CR>/\[[0-9]*:<CR>:let @/=g:SaveSearchMBE<CR>:let &hls = g:SaveHlsMBE<CR>:unlet g:SaveSearchMBE<CR>:unlet g:SaveHlsMBE<CR>
+  nnoremap <buffer> <S-TAB> :let g:SaveSearchMBE=@/<CR>:let g:SaveHlsMBE=&hls<CR>:set nohls<CR>?\[[0-9]*:<CR>:let @/=g:SaveSearchMBE<CR>:let &hls = g:SaveHlsMBE<CR>:unlet g:SaveSearchMBE<CR>:unlet g:SaveHlsMBE<CR>
  
   call <SID>DisplayBuffers()
 
@@ -326,12 +441,17 @@ function! <SID>ResizeWindow()
 
   let l:width  = winwidth('.')
   let l:length = strlen(getline('.'))
-  let l:height = (l:length / l:width) 
-  " handle truncation from div
-  if (l:length % l:width) != 0
-    let l:height = l:height + 1
+  if (l:width == 0 || l:length == 0)
+    let l:height = winheight('.')
+    exec('resize '.l:height)
+  else
+    let l:height = (l:length / l:width) 
+    " handle truncation from div
+    if (l:length % l:width) != 0
+      let l:height = l:height + 1
+    endif
+    exec('resize '.l:height)
   endif
-  exec('resize '.l:height)
 
 endfunction
 
@@ -614,17 +734,9 @@ function! <SID>DeleteBuffer()
 
         call <SID>DEBUG('We are now in window: '.winnr().' which contains buffer: '.bufnr('%').' and should contain buffer: '.l:selBuf,5)
 
-        " Change buffer (keeping track of before and after buffers)
         let l:origBuf = bufnr('%')
-        bn
+        call <SID>CycleBuffer(1)
         let l:curBuf  = bufnr('%')
-
-        " Skip any non-modifiable buffers, but don't cycle forever
-        " This should stop us from stopping in any of the [Explorers]
-        while getbufvar(bufnr('%'), '&modifiable') == 0 && l:origBuf != l:curBuf
-            bn
-            let l:curBuf = bufnr('%')
-        endwhile
 
         call <SID>DEBUG('Window now contains buffer: '.bufnr('%').' which should not be: '.l:selBuf,5)
 
@@ -670,6 +782,35 @@ function! <SID>DeleteBuffer()
 
   let &report  = l:save_rep
   let &showcmd = l:save_sc
+
+endfunction
+
+"
+" Cycle Through Buffers 
+"
+" Move to next or previous buffer in the current window. If there 
+" are no more modifiable buffers then stay on the current buffer.
+"
+function! <SID>CycleBuffer(forward)
+  " Change buffer (keeping track of before and after buffers)
+  let l:origBuf = bufnr('%')
+  if (a:forward == 1)
+    bn!
+  else
+    bp!
+  endif
+  let l:curBuf  = bufnr('%')
+  
+  " Skip any non-modifiable buffers, but don't cycle forever
+  " This should stop us from stopping in any of the [Explorers]
+  while getbufvar(l:curBuf, '&modifiable') == 0 && l:origBuf != l:curBuf
+    if (a:forward == 1)
+        bn!
+    else
+        bp!
+    endif
+    let l:curBuf = bufnr('%')
+  endwhile
 
 endfunction
 
