@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Monday, November 26, 2001
-"      Version: 6.0.0
+"  Last Change: Tuesday, December 4, 2001
+"      Version: 6.0.2
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -44,7 +44,23 @@
 "
 "               The default for this is read from the &splitbellow vim option.
 "
-"      History: 6.0.1 Added MoreThanOne option and set it on by default
+"               By default we are now (as of 6.0.1) turning on the MoreThanOne
+"               option. This stops the [MiniBufExplorer] from opening 
+"               automatically until more than one eligible buffer is available.
+"               You can turn this feature off by setting the following variable:
+"                 
+"                 let g:miniBufExplorerMoreThanOne=0
+"
+"               By default we are now (as of 6.0.2) forcing the [MiniBufExplorer]
+"               window to open up at the edge of the screen. You can turn this 
+"               off by setting the following variable:
+"
+"                 let g:miniBufExplSplitToEdge=0
+"
+"      History: 6.0.2 2 Changes requested by Suresh Govindachar
+"                     Added SplitToEdge option and set it on by default
+"                     Added tab and shift-tab mappings in [MBE] window
+"               6.0.1 Added MoreThanOne option and set it on by default
 "                     MiniBufExplorer will not automatically open until
 "                     more than one eligible buffers are opened. This
 "                     reduces cluter when you are only working on a
@@ -104,11 +120,19 @@ if !exists('g:miniBufExplorerMoreThanOne')
 endif
 
 "
-" When opening a new windows, split the new windows below or above the
-" current window?  1 = below, 0 = above.
+" When opening a new [MiniBufExplorer] window, split the new windows below or 
+" above the current window?  1 = below, 0 = above.
 "
 if !exists('g:miniBufExplSplitBelow')
   let g:miniBufExplSplitBelow = &splitbelow
+endif
+
+"
+" When opening a new [MiniBufExplorer] window, split the new windows to the
+" full edge? 1 = yes, 0 = no.
+"
+if !exists('g:miniBufExplSplitToEdge')
+  let g:miniBufExplSplitToEdge = 1
 endif
 
 "
@@ -178,6 +202,10 @@ function! <SID>StartExplorer()
   nnoremap <buffer> k gk
   nnoremap <buffer> <down> gj
   nnoremap <buffer> <up> gk
+  " The following allows for quicker moving between buffer
+  " names in the [MBE] window
+  nnoremap <buffer> <TAB> W
+  nnoremap <buffer> <S-TAB> B
  
   call <SID>DisplayBuffers()
 
@@ -216,7 +244,16 @@ function! <SID>FindCreateExplorer()
     exec l:winNum.' wincmd w'
     let l:winFound = 1
   else
-    sp [MiniBufExplorer]
+
+    if g:miniBufExplSplitToEdge == 1
+        if &splitbelow
+            bo sp [MiniBufExplorer]
+        else
+            to sp [MiniBufExplorer]
+        endif
+    else
+        sp [MiniBufExplorer]
+    endif
 
     " Make sure we are in our window
     if bufname('%') != '[MiniBufExplorer]'
