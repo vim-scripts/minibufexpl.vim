@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Saturday, April 26, 2003
-"      Version: 6.2.8
+"  Last Change: Sunday, June 21, 2004
+"      Version: 6.3.0
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -65,9 +65,11 @@
 "               current window, use the setting:
 "
 "                 let g:miniBufExplSplitBelow=0  " Put new window above
-"                                                " current.
+"                                                " current or on the
+"                                                " left for vertical split
 "                 let g:miniBufExplSplitBelow=1  " Put new window below
-"                                                " current.
+"                                                " current or on the
+"                                                " right for vertical split
 "
 "               The default for this is read from the &splitbelow VIM option.
 "
@@ -77,20 +79,52 @@
 "
 "                 let g:miniBufExplSplitToEdge = 0
 "
+"               If you would like a vertical explorer you can assign the column
+"               width (in characters) you want for your explorer window with the
+"               following .vimrc variable (this was introduced in 6.3.0):
+"
+"                 let g:miniBufExplVSplit = 20   " column width in chars
+"
+"               IN HORIZONTAL MODE:
 "               It is now (as of 6.1.1) possible to set a maximum height for
 "               the -MiniBufExplorer- window. You can set the max height by
 "               letting the following variable in your .vimrc:
 "
-"                 let g:miniBufExplMaxHeight = <max lines: defualt 0>
-"
+"                 let g:miniBufExplMaxSize = <max lines: defualt 0>
+"               
 "               setting this to 0 will mean the window gets as big as
-"               needed to fit all your buffers.
+"               needed to fit all your buffers. 
+"
+"               NOTE: This was g:miniBufExplMaxHeight before 6.3.0; the old
+"               setting is backwards compatible if you don't use MaxSize.
 "
 "               As of 6.2.2 it is possible to set a minimum height for the 
 "               -MiniBufExplorer- window. You can set the min height by
 "               letting the following variable in your .vimrc:
 "
-"                 let g:miniBufExplMinHeight = <min height: default 1>
+"                 let g:miniBufExplMinSize = <min height: default 1>
+"
+"               NOTE: This was g:miniBufExplMinHeight before 6.3.0; the old
+"               setting is backwards compatible if you don't use MinSize.
+"
+"               IN VERTICAL MODE: (as of 6.3.0)
+"               By default the vertical explorer has a fixed width. If you put:
+"
+"                 let g:miniBufExplMaxSize = <max width: default 0> 
+"
+"               into your .vimrc then MBE will attempt to set the width of the
+"               MBE window to be as wide as your widest tab. The width will not
+"               exceed MaxSize even if you have wider tabs. 
+"
+"               Accepting the default value of 0 for this will give you a fixed
+"               width MBE window.
+"
+"               You can specify a MinSize for the vertical explorer window by
+"               putting the following in your .vimrc:
+"
+"                 let g:miniBufExplMinSize = <min width: default 1>
+"
+"               This will have no effect unless you also specivy MaxSize.
 "
 "               By default we are now (as of 6.0.1) turning on the MoreThanOne
 "               option. This stops the -MiniBufExplorer- from opening 
@@ -137,6 +171,18 @@
 "               NOTE: If you set the ...TabSwitchBufs AND ...TabSwitchWindows, 
 "                     ...TabSwitchBufs will be enabled and ...TabSwitchWindows 
 "                     will not.
+"               
+"               As of MBE 6.3.0, you can put the following into your .vimrc:
+"               
+"                 let g:miniBufExplUseSingleClick = 1
+"
+"               If you would like to single click on tabs rather than double
+"               clicking on them to goto the selected buffer. 
+"
+"               NOTE: If you use the single click option in taglist.vim you may 
+"                     need to get an updated version that includes a patch I 
+"                     provided to allow both explorers to provide single click 
+"                     buffer selection.
 "
 "               It is possible to customize the the highlighting for the tabs in 
 "               the MBE by configuring the following highlighting groups:
@@ -202,7 +248,7 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 " 
-"               Several MBE commands can break the window history so <C-W>p
+"               Several MBE commands can break the window history so <C-W>[pnw]
 "               might not take you to the expected window.
 "
 "         Todo: Add the ability to specify a regexp for eligible buffers
@@ -327,19 +373,44 @@ endif
 "
 " When sizing the -MiniBufExplorer- window, assign a maximum window height.
 " 0 = size to fit all buffers, otherwise the value is number of lines for
-" buffer.
+" buffer. [Depreciated use g:miniBufExplMaxSize]
 "
 if !exists('g:miniBufExplMaxHeight')
   let g:miniBufExplMaxHeight = 0
 endif
 
+" Same as MaxHeight but also works for vertical splits if specified with a
+" vertical split then vertical resizing will be performed. If left at 0 
+" then the number of columns in g:miniBufExplVSplit will be used as a
+" static window width.
+if !exists('g:miniBufExplMaxSize')
+  let g:miniBufExplMaxSize = g:miniBufExplMaxHeight
+endif
+
 "
 " When sizing the -MiniBufExplorer- window, assign a minumum window height.
 " the value is minimum number of lines for buffer. Setting this to zero can
-" cause strange height behavior. The default value is 1
+" cause strange height behavior. The default value is 1 [Depreciated use
+" g:miniBufExplMinSize]
 "
 if !exists('g:miniBufExplMinHeight')
   let g:miniBufExplMinHeight = 1
+endif
+
+" Same as MinHeight but also works for vertical splits. For vertical splits, 
+" this is ignored unless g:miniBufExplMax(Size|Height) are specified.
+if !exists('g:miniBufExplMinSize')
+  let g:miniBufExplMinSize = g:miniBufExplMinHeight
+endif
+
+"
+" For folks that like vertical explorers, I'm caving in and providing for
+" veritcal splits. If this is set to 0 then the current horizontal 
+" splitting logic will be run. If however you want a vertical split,
+" assign the width (in characters) you wish to assign to the MBE window.
+"
+if !exists('g:miniBufExplVSplit')
+  let g:miniBufExplVSplit = 0
 endif
 
 "
@@ -405,6 +476,40 @@ if !exists('g:miniBufExplForceDisplay')
   let g:miniBufExplForceDisplay = 0
 endif
 
+" Variable used to pass maxTabWidth info between functions
+let s:maxTabWidth = 0
+
+
+"
+" flag that can be set to 1 in a users .vimrc to allow 
+" single click switching of tabs. By default we use
+" double click for tab selection.
+"
+if !exists('g:miniBufExplUseSingleClick')
+  let g:miniBufExplUseSingleClick = 0
+endif
+
+"
+" attempt to perform single click mapping, it would be much
+" nicer if we could nnoremap <buffer> ... however vim does
+" not fire the <buffer> <leftmouse> when you use the mouse
+" to enter a buffer.
+"
+if g:miniBufExplUseSingleClick == 1
+  let s:clickmap = ':if bufname("%") == "-MiniBufExplorer-" <bar> call <SID>MBEClick() <bar> endif <CR>'
+  if maparg('<LEFTMOUSE>', 'n') == '' 
+    " no mapping for leftmouse
+    exec ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>' . s:clickmap
+  else
+    " we have a mapping
+    let  g:miniBufExplDoneClickSave = 1
+    let  s:m = ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>'
+    let  s:m = s:m . substitute(substitute(maparg('<LEFTMOUSE>', 'n'), '|', '<bar>', 'g'), '\c^<LEFTMOUSE>', '', '')
+    let  s:m = s:m . s:clickmap
+    exec s:m
+  endif
+endif
+  
 "
 " If we have enabled control + vim direction key remapping
 " then perform the remapping
@@ -686,12 +791,30 @@ function! <SID>FindCreateWindow(bufName, forceEdge, isExplorer, doDebug)
         endif
 
         if l:edge
-            exec 'bo sp '.a:bufName
+            if g:miniBufExplVSplit == 0
+              exec 'bo sp '.a:bufName
+            else
+              exec 'bo vsp '.a:bufName
+            endif
         else
-            exec 'to sp '.a:bufName
+            if g:miniBufExplVSplit == 0
+              exec 'to sp '.a:bufName
+            else
+              exec 'to vsp '.a:bufName
+            endif
         endif
     else
-        exec 'sp '.a:bufName
+        if g:miniBufExplVSplit == 0
+          exec 'sp '.a:bufName
+        else
+          " &splitbelow doesn't affect vertical splits
+          " so we have to do this explicitly.. ugh.
+          if &splitbelow
+            exec 'rightb vsp '.a:bufName
+          else
+            exec 'vsp '.a:bufName
+          endif
+        endif
     endif
 
     let g:miniBufExplForceDisplay = 1
@@ -716,7 +839,12 @@ function! <SID>FindCreateWindow(bufName, forceEdge, isExplorer, doDebug)
       setlocal noswapfile
       setlocal buftype=nofile
       setlocal bufhidden=delete
-      setlocal wrap
+      if g:miniBufExplVSplit == 0
+        setlocal wrap
+      else
+        setlocal nowrap
+        exec('setlocal winwidth='.g:miniBufExplMinSize)
+      endif
     endif
 
     if a:doDebug
@@ -755,6 +883,7 @@ function! <SID>DisplayBuffers(delBufNum)
   
   " Prevent the buffer from being modified.
   setlocal nomodifiable
+  set nobuflisted
 
 endfunction
 
@@ -774,43 +903,69 @@ function! <SID>ResizeWindow()
   endif
 
   let l:width  = winwidth('.')
-  if g:miniBufExplTabWrap == 0
-    let l:length = strlen(getline('.'))
-    let l:height = 0
-    if (l:width == 0)
-      let l:height = winheight('.')
+
+  " Horizontal Resize
+  if g:miniBufExplVSplit == 0
+
+    if g:miniBufExplTabWrap == 0
+      let l:length = strlen(getline('.'))
+      let l:height = 0
+      if (l:width == 0)
+        let l:height = winheight('.')
+      else
+        let l:height = (l:length / l:width) 
+        " handle truncation from div
+        if (l:length % l:width) != 0
+          let l:height = l:height + 1
+        endif
+      endif
     else
-      let l:height = (l:length / l:width) 
-      " handle truncation from div
-      if (l:length % l:width) != 0
-        let l:height = l:height + 1
+      exec("setlocal textwidth=".l:width)
+      normal gg
+      normal gq}
+      normal G
+      let l:height = line('.')
+      normal gg
+    endif
+  
+    " enforce max window height
+    if g:miniBufExplMaxSize != 0
+      if g:miniBufExplMaxSize < l:height
+        let l:height = g:miniBufExplMaxSize
       endif
     endif
-  else
-    exec("setlocal textwidth=".l:width)
-    normal gg
-    normal gq}
-    normal G
-    let l:height = line('.')
-    normal gg
-  endif
-
-  " enforce max window height
-  if g:miniBufExplMaxHeight != 0
-    if g:miniBufExplMaxHeight < l:height
-      let l:height = g:miniBufExplMaxHeight
+  
+    " enfore min window height
+    if l:height < g:miniBufExplMinSize || l:height == 0
+      let l:height = g:miniBufExplMinSize
     endif
+  
+    call <SID>DEBUG('ResizeWindow to '.l:height.' lines',9)
+  
+    exec('resize '.l:height)
+  
+  " Vertical Resize
+  else 
+
+    if g:miniBufExplMaxSize != 0
+      let l:newWidth = s:maxTabWidth
+      if l:newWidth > g:miniBufExplMaxSize 
+          let l:newWidth = g:miniBufExplMaxSize
+      endif
+      if l:newWidth < g:miniBufExplMinSize
+          let l:newWidth = g:miniBufExplMinSize
+      endif
+    else
+      let l:newWidth = g:miniBufExplVSplit
+    endif
+
+    if l:width != l:newWidth
+      call <SID>DEBUG('ResizeWindow to '.l:newWidth.' columns',9)
+      exec('vertical resize '.l:newWidth)
+    endif
+
   endif
-
-  " enfore min window height
-  if l:height < g:miniBufExplMinHeight || l:height == 0
-    let l:height = g:miniBufExplMinHeight
-  endif
-
-  call <SID>DEBUG('ResizeWindow to '.l:height.' lines',9)
-
-  exec('resize '.l:height)
-
+  
 endfunction
 
 " 
@@ -850,6 +1005,19 @@ function! <SID>ShowBuffers(delBufNum)
   
 endfunction
 
+"
+" Max
+" 
+" Returns the max of two numbers
+"
+function! <SID>Max(argOne, argTwo)
+  if a:argOne > a:argTwo
+    return a:argOne
+  else
+    return a:argTwo
+  endif
+endfunction
+
 " 
 " BuildBufferList.
 " 
@@ -863,6 +1031,7 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
   let l:i = 0                     " Set the buffer index to zero.
 
   let l:fileNames = ''
+  let l:maxTabWidth = 0
 
   " Loop through every buffer less than the total number of buffers.
   while(l:i <= l:NBuffers)
@@ -886,23 +1055,30 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
             " Get filename & Remove []'s & ()'s
             let l:shortBufName = fnamemodify(l:BufName, ":t")                  
             let l:shortBufName = substitute(l:shortBufName, '[][()]', '', 'g') 
-            let l:fileNames = l:fileNames.'['.l:i.':'.l:shortBufName.']'
+            let l:tab = '['.l:i.':'.l:shortBufName.']'
 
             " If the buffer is open in a window mark it
             if bufwinnr(l:i) != -1
-              let l:fileNames = l:fileNames . '*'
+              let l:tab = l:tab . '*'
             endif
 
             " If the buffer is modified then mark it
             if(getbufvar(l:i, '&modified') == 1)
-              let l:fileNames = l:fileNames . '+'
+              let l:tab = l:tab . '+'
             endif
 
-            " If tab wrap is turned on we need to add spaces
-            if g:miniBufExplTabWrap != 0
-              let l:fileNames = l:fileNames.' '
-            endif
+            let l:maxTabWidth = <SID>Max(strlen(l:tab), l:maxTabWidth)
+            let l:fileNames = l:fileNames.l:tab
 
+            " If horizontal and tab wrap is turned on we need to add spaces
+            if g:miniBufExplVSplit == 0
+              if g:miniBufExplTabWrap != 0
+                let l:fileNames = l:fileNames.' '
+              endif
+            " If not horizontal we need a newline
+            else
+              let l:fileNames = l:fileNames . "\n"
+            endif
           endif
         endif
       endif
@@ -912,6 +1088,7 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
   if (g:miniBufExplBufList != l:fileNames)
     if (a:updateBufList)
       let g:miniBufExplBufList = l:fileNames
+      let s:maxTabWidth = l:maxTabWidth
     endif
     return 1
   else
@@ -1335,6 +1512,14 @@ function! <SID>CycleBuffer(forward)
 endfunction
 
 "
+" MBEClick - Double click with the mouse.
+"
+function! s:MBEClick()
+  call <SID>DEBUG('Entering MBEClick()',10)
+  call <SID>MBESelectBuffer()
+endfunction
+
+"
 " MBEDoubleClick - Double click with the mouse.
 "
 function! s:MBEDoubleClick()
@@ -1419,9 +1604,31 @@ endfunc
 
 "=============================================================================
 "
-"      History: 6.2.8 o Add an option to stop MBE from targeting non-modifiable
+"      History: 6.3.0 o Added an option to allow single click (rather than
+"                       the default double click) to select buffers in the
+"                       MBE window. This feature was requested by AW Law
+"                       and was inspired by taglist.vim. Note that you will 
+"                       need the latest version of taglist.vim if you want to 
+"                       use MBE and taglist both with singleclick turned on.
+"                       Also thanks to AW Law for pointing out that you can
+"                       make an Explorer not be listed in a standard :ls.
+"                     o Added the ability to have your tabs show up in a
+"                       vertical window rather than the standard horizontal
+"                       one. Just let g:miniBufExplVSplit = <width> in your
+"                       .vimrc and your will get this functionality.
+"                     o If you use the vertical explorer and you want it to
+"                       autosize then let g:miniBufExplMaxSize = <max width>
+"                       in your .vimrc. You may use the MinSize letting in
+"                       addition to the MaxLetting if you don't want a super
+"                       thin window.
+"                     o g:miniBufExplMaxHeight was renamed g:miniBufExplMaxSize
+"                       g:miniBufExplMinHeight was renamed g:miniBufExplMinSize
+"                       the old settings are backwards compatible if you don't
+"                       use the new settings, but they are depreciated.
+"               6.2.8 o Add an option to stop MBE from targeting non-modifiable
 "                       buffers when switching buffers. Thanks to AW Law for
-"                       the inspiration for this.
+"                       the inspiration for this. This may not work if a user
+"                       has lots of explorer/help windows open.
 "               6.2.7 o Very minor bug fix for people who want to set
 "                       loaded_minibufexplorer in their .vimrc in order to
 "                       stop MBE from loading. 99.99% of users do not need
@@ -1461,9 +1668,12 @@ endfunc
 "                       closed until the 4th eligible buffer is loaded.
 "                     o Added a MinHeight option. This is nice if you want
 "                       the MBE window to always take the same amount of
-"                       space. For example set MaxHeight and MinHeight to 2
+"                       space. For example set MaxSize and MinSize to 2
 "                       and set MoreThanOne to 0 and you will always have
 "                       a 2 row (plus the ruler :) MBE window.
+"                       NOTE: in 6.3.0 we started using MinSize instead of
+"                       Minheight. This will still work if MinSize is not
+"                       specified, but it is depreciated. Use MinSize instead.
 "                     o I now setlocal foldcomun=0 and nonumber in the MBE 
 "                       window. This is for those of you that like to have
 "                       these options turned on locally. I'm assuming noone
@@ -1494,6 +1704,9 @@ endfunc
 "                     o Added g:miniBufExplMaxHeight variable so you can keep
 "                       the -MiniBufExplorer- window small when you have lots
 "                       of buffers (or buffers with long names :)
+"                       NOTE: in 6.3.0 we started using MaxSize instead of
+"                       MaxHeight. This will still work if MaxSize is not
+"                       specified, but it is depreciated. Use MaxSize instead.
 "                     o Improvement to internal syntax highlighting code
 "                       I renamed the syntax group names. Anyone who has 
 "                       figured out how to use them already shouldn't have
