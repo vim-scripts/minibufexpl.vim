@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Friday, March 28, 2003
-"      Version: 6.2.4
+"  Last Change: Monday, April 14, 2003
+"      Version: 6.2.5
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -36,6 +36,30 @@
 "
 "               <Leader> is usually backslash so type "\mbe" (quickly) to open 
 "               the -MiniBufExplorer- window.
+"
+"               Other keymappings include: <Leader>mbc to close the Explorer
+"               window,  <Leader>mbu to force the Explorer to Update and
+"               <Leader>mbt to toggle the Explorer window; it will open if
+"               closed or close if open. Each of these key bindings can be
+"               overridden (see the notes on <Leader>mbe above.)
+" 
+"               You can map these additional commands as follows:
+"
+"                 map <Leader>c :CMiniBufExplorer<cr>
+"                 map <Leader>u :UMiniBufExplorer<cr>
+"                 map <Leader>t :TMiniBufExplorer<cr>
+"
+"               NOTE: you can change the key binding used in these mappings
+"                     so that they fit with your configuration of vim.
+"
+"               You can also call each of these features by typing the
+"               following in command mode:
+"
+"                 :MiniBufExplorer    " Open and/or goto Explorer
+"                 :CMiniBufExplorer   " Close the Explorer if it's open
+"                 :UMiniBufExplorer   " Update Explorer without navigating
+"                 :TMiniBufExplorer   " Toggle the Explorer window open and 
+"                                       closed.
 "
 "               To control where the new split window goes relative to the 
 "               current window, use the setting:
@@ -83,7 +107,7 @@
 "               can also set it to larger numbers. So if you set it to 4 for
 "               example the MBE window wouldn't auto-open until 4 eligibles
 "               buffers had been loaded. This is nice for folks that don't 
-"               want an MBE window unless they are editing more than 2 or
+"               want an MBE window unless they are editing more than two or
 "               three buffers.
 "
 "               To enable the optional mapping of Control + Vim Direction Keys 
@@ -122,6 +146,9 @@
 "                 let g:miniBufExplorerDebugLevel = 4  " MBE all errors output
 "                 let g:miniBufExplorerDebugLevel = 10 " MBE reports everything
 "
+"               You can also set a DebugMode to cause output to be target as
+"               follows (default is mode 3):
+"
 "                 let g:miniBufExplorerDebugMode  = 0  " Errors will show up in 
 "                                                      " a vim window
 "                 let g:miniBufExplorerDebugMode  = 1  " Uses VIM's echo function
@@ -138,8 +165,21 @@
 " Known Issues: When debugging is turned on and set to output to a window, there
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
+" 
+"               Several MBE commands can break the window history so <C-W>p
+"               might not take you to the expected window.
 "
-"      History: 6.2.4 o Because of the autocommand switch (see 6.2.0) it 
+"      History: 6.2.5 o Added <Leader>mbt key mapping which will toggle
+"                       the MBE window. I map this to F3 in my .vimrc
+"                       with "map <F3> :TMiniBufExplorer<CR>" which 
+"                       means I can easily close the MBE window when I'm 
+"                       not using it and get it back when I want it.
+"                     o Changed default debug mode to 3 (write to global
+"                       g:miniBufExplorerDebugOutput)
+"                     o Made a pass through the documentation to clarify 
+"                       serveral issues and provide more complete docs
+"                       for mappings and commands.
+"               6.2.4 o Because of the autocommand switch (see 6.2.0) it 
 "                       was possible to remove the restriction on the
 "                       :set hidden option. It is now possible to use
 "                       this option with MBE.
@@ -266,7 +306,8 @@
 "                       more than one eligible buffers are opened. This
 "                       reduces cluter when you are only working on a
 "                       single file. 
-"                       NOTE: See 6.2.2 for more details about this feature
+"                       NOTE: See change log for 6.2.2 for more details about 
+"                             this feature
 "               6.0.0 o Initial Release on November 20, 2001
 "
 "         Todo: Provide better support for user defined syntax highlighting
@@ -300,6 +341,9 @@ endif
 if !hasmapto('<Plug>UMiniBufExplorer')
   map <unique> <Leader>mbu <Plug>UMiniBufExplorer
 endif
+if !hasmapto('<Plug>TMiniBufExplorer')
+  map <unique> <Leader>mbt <Plug>TMiniBufExplorer
+endif
 
 " 
 " Setup <Script> internal map.
@@ -307,6 +351,7 @@ endif
 noremap <unique> <script> <Plug>MiniBufExplorer  :call <SID>StartExplorer(1, -1)<CR>:<BS>
 noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1)<CR>:<BS>
 noremap <unique> <script> <Plug>UMiniBufExplorer :call <SID>AutoUpdate(-1)<CR>:<BS>
+noremap <unique> <script> <Plug>TMiniBufExplorer :call <SID>ToggleExplorer()<CR>:<BS>
 
 " 
 " Create command mbe command.
@@ -319,6 +364,9 @@ if !exists(':CMiniBufExplorer')
 endif
 if !exists(':UMiniBufExplorer')
   command! UMiniBufExplorer :call <SID>AutoUpdate(-1)
+endif
+if !exists(':TMiniBufExplorer')
+  command! TMiniBufExplorer :call <SID>ToggleExplorer()
 endif
 
 "
@@ -340,8 +388,10 @@ endif
 " 2 = write to a file named MiniBufExplorer.DBG
 "     in the directory where vim was started
 "     THIS IS VERY SLOW
+" 3 = Write into g:miniBufExplorerDebugOutput
+"     global variable [This is the default]
 if !exists('g:miniBufExplorerDebugMode')
-  let g:miniBufExplorerDebugMode = 0 
+  let g:miniBufExplorerDebugMode = 3 
 endif
 
 "
@@ -520,19 +570,21 @@ function! <SID>StartExplorer(sticky, delBufNum)
   " Store the current buffer
   let l:curBuf = bufnr('%')
 
-  call <SID>FindCreateWindow('-MiniBufExplorer-', -1, 1, 1)
-
-  " Make sure we are in our window
-  if bufname('%') != '-MiniBufExplorer-'
-    call <SID>DEBUG('StartExplorer called in invalid window',1)
-    return
-  endif
-
   " Prevent a report of our actions from showing up.
   let l:save_rep = &report
   let l:save_sc  = &showcmd
   let &report    = 10000
   set noshowcmd 
+
+  call <SID>FindCreateWindow('-MiniBufExplorer-', -1, 1, 1)
+
+  " Make sure we are in our window
+  if bufname('%') != '-MiniBufExplorer-'
+    call <SID>DEBUG('StartExplorer called in invalid window',1)
+    let &report  = l:save_rep
+    let &showcmd = l:save_sc
+    return
+  endif
 
   " !!! We may want to make the following optional -- Bindu
   " New windows don't cause all windows to be resized to equal sizes
@@ -626,6 +678,34 @@ function! <SID>StopExplorer(sticky)
 
   call <SID>DEBUG('===========================',10)
   call <SID>DEBUG('Completed StopExplorer()'   ,10)
+  call <SID>DEBUG('===========================',10)
+
+endfunction
+
+"
+" ToggleExplorer
+"
+" Looks for our explorer and closes the window if it is open
+" or opens it if it's closed.
+"
+function! <SID>ToggleExplorer()
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering ToggleExplorer()'  ,10)
+  call <SID>DEBUG('===========================',10)
+
+  let g:miniBufExplorerAutoUpdate = 0
+
+  let l:winNum = <SID>FindWindow('-MiniBufExplorer-', 1)
+
+  if l:winNum != -1 
+    call <SID>StopExplorer(1)
+  else
+    call <SID>StartExplorer(1, -1)
+    wincmd p
+  endif
+
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed ToggleExplorer()' ,10)
   call <SID>DEBUG('===========================',10)
 
 endfunction
@@ -998,9 +1078,9 @@ endfunction
 "
 " Auto Update
 "
-" IF auto update is turned on     AND
-"    we are in a real buffer      AND
-"    we have an eligible buffer   THEN
+" IF auto update is turned on        AND
+"    we are in a real buffer         AND
+"    we have enough eligible buffers THEN
 " Update our explorer and get back to the current window
 "
 " If we get a buffer number for a buffer that 
@@ -1350,17 +1430,6 @@ endfunction
 "
 " Display debug output when debugging is turned on
 "
-"function! <SID>DEBUG(msg, level)
-  "if g:miniBufExplorerDebugLevel >= a:level
-    "call confirm(a:msg, 'OK')
-  "endif
-"endfunction
-
-
-"
-" DEBUG
-"
-" Display debug output when debugging is turned on
 " Thanks to Charles E. Campbell, Jr. PhD <cec@NgrOyphSon.gPsfAc.nMasa.gov> 
 " for Decho.vim which was the inspiration for this enhanced debugging 
 " capability.
