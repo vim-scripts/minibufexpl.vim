@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Monday, March 24, 2003
-"      Version: 6.2.2
+"  Last Change: Wednesday, March 26, 2003
+"      Version: 6.2.3
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -145,7 +145,14 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.2.2 o Changed the way the g:miniBufExplorerMoreThanOne
+"      History: 6.2.3 o Added miniBufExplTabWrap option. It is turned 
+"                       off by default. When turned on spaces are added
+"                       between tabs and gq} is issued to perform line
+"                       formatting. This won't work very well if filenames
+"                       contain spaces. It would be pretty easy to write
+"                       my own formatter, but I'm too lazy, so if someone
+"                       really needs that feature I'll add it :)
+"               6.2.2 o Changed the way the g:miniBufExplorerMoreThanOne
 "                       global is handled. You can set this to the number
 "                       of eligible buffers you want to be loaded before
 "                       the MBE window is loaded. Setting it to 0 causes
@@ -260,7 +267,8 @@
 "                       MiniBufExplorer will not automatically open until
 "                       more than one eligible buffers are opened. This
 "                       reduces cluter when you are only working on a
-"                       single file.
+"                       single file. 
+"                       NOTE: See 6.2.2 for more details about this feature
 "               6.0.0 o Initial Release on November 20, 2001
 "
 "         Todo: Provide better support for user defined syntax highlighting
@@ -403,6 +411,15 @@ endif
 "
 if !exists('g:miniBufExplMinHeight')
   let g:miniBufExplMinHeight = 1
+endif
+
+"
+" By default line wrap is used (possibly breaking a tab name between two
+" lines.) Turning this option on (setting it to 1) can take more screen
+" space, but will make sure that each tab is on one and only one line.
+"
+if !exists('g:miniBufExplTabWrap')
+  let g:miniBufExplTabWrap = 0
 endif
 
 "
@@ -790,16 +807,25 @@ function! <SID>ResizeWindow()
   endif
 
   let l:width  = winwidth('.')
-  let l:length = strlen(getline('.'))
-  let l:height = 0
-  if (l:width == 0)
-    let l:height = winheight('.')
-  else
-    let l:height = (l:length / l:width) 
-    " handle truncation from div
-    if (l:length % l:width) != 0
-      let l:height = l:height + 1
+  if g:miniBufExplTabWrap == 0
+    let l:length = strlen(getline('.'))
+    let l:height = 0
+    if (l:width == 0)
+      let l:height = winheight('.')
+    else
+      let l:height = (l:length / l:width) 
+      " handle truncation from div
+      if (l:length % l:width) != 0
+        let l:height = l:height + 1
+      endif
     endif
+  else
+    exec("setlocal textwidth=".l:width)
+    normal gg
+    normal gq}
+    normal G
+    let l:height = line('.')
+    normal gg
   endif
 
   " enforce max window height
@@ -894,7 +920,7 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
             let l:shortBufName = fnamemodify(l:BufName, ":t")                  
             let l:shortBufName = substitute(l:shortBufName, '[][()]', '', 'g') 
             let l:fileNames = l:fileNames.'['.l:i.':'.l:shortBufName.']'
-  
+
             " If the buffer is open in a window mark it
             if bufwinnr(l:i) != -1
               let l:fileNames = l:fileNames . '*'
@@ -903,6 +929,11 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
             " If the buffer is modified then mark it
             if(getbufvar(l:i, '&modified') == 1)
               let l:fileNames = l:fileNames . '+'
+            endif
+
+            " If tab wrap is turned on we need to add spaces
+            if g:miniBufExplTabWrap != 0
+              let l:fileNames = l:fileNames.' '
             endif
 
           endif
