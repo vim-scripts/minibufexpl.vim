@@ -18,7 +18,7 @@
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
 "  Last Change: Sunday, June 21, 2004
-"      Version: 6.3.1
+"      Version: 6.3.2
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -312,7 +312,7 @@ if !exists(':MiniBufExplorer')
   command! MiniBufExplorer  call <SID>StartExplorer(1, -1)
 endif
 if !exists(':CMiniBufExplorer')
-  command! CMiniBufExplorer  call <SID>StopExplorer(1, -1)
+  command! CMiniBufExplorer  call <SID>StopExplorer(1)
 endif
 if !exists(':UMiniBufExplorer')
   command! UMiniBufExplorer  call <SID>AutoUpdate(-1)
@@ -1642,7 +1642,10 @@ endfunc " }}}
 " MBE Script History {{{
 "=============================================================================
 "
-"      History: 6.3.1 o Include folds in source so that it's easier to 
+"      History: 6.3.2 o For some reason there was still a call to StopExplorer
+"                       with 2 params. Very old bug. I know I fixed before, 
+"                       any way many thanks to Jason Mills for reporting this!
+"               6.3.1 o Include folds in source so that it's easier to 
 "                       navigate.
 "                     o Added g:miniBufExplForceSyntaxEnable setting for folks
 "                       that want a :syntax enable to be called when we enter 
