@@ -10,10 +10,10 @@
 "
 " Name Of File: minibufexpl.vim
 "  Description: Mini Buffer Explorer Vim Plugin
-"   Maintainer: Bindu Wavell <binduwavell@yahoo.com
-"          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
+"   Maintainer: Bindu Wavell <bindu@wavell.net>
+"          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
 "  Last Change: Tuesday, September 17th, 2002
-"      Version: 6.0.9
+"      Version: 6.1.0
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -33,6 +33,9 @@
 "                 map <Leader>b :MiniBufExplorer<cr>
 "
 "               However, in most cases you won't need any key-bindings at all.
+"
+"               <Leader> is usually backslash so type "\mbe" (quickly)
+"               to open the -MiniBufExplorer- window.
 "
 "               To control where the new split window goes relative to
 "               the current window, use the setting:
@@ -115,7 +118,10 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.0.9 o Double clicking tabs was overwriting the cliboard 
+"      History: 6.1.0 o <Leader>mbc was failing because I was calling one of
+"                       my own functions with the wrong number of args. :(
+"                       Thanks to Gerry Patterson for finding this!
+"               6.0.9 o Double clicking tabs was overwriting the cliboard 
 "                       register on MS Windows.  Thanks to Shoeb Bhinderwala 
 "                       for reporting this issue.
 "               6.0.8 o Apparently some VIM builds are having a hard time with
@@ -183,6 +189,7 @@
 "               o Add the ability to specify a regexp for eligible buffers
 "                 allowing the ability to filter out certain buffers that 
 "                 you don't want to control from MBE
+"               o Create a max MBE window height option
 "
 "=============================================================================
 
@@ -231,7 +238,7 @@ endif
 " Setup <Script> internal map.
 " 
 noremap <unique> <script> <Plug>MiniBufExplorer  :call <SID>StartExplorer(1, -1)<CR>:<BS>
-noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1, -1)<CR>:<BS>
+noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1)<CR>:<BS>
 noremap <unique> <script> <Plug>UMiniBufExplorer :call <SID>AutoUpdate(-1)<CR>:<BS>
 
 " 
@@ -916,7 +923,7 @@ function! <SID>MBESelectBuffer()
       " The following nasty hack handles the case where -MiniBufExplorer-
       " is the only window left. In this case we need to replace our
       " window without triggering autoupdate then we need to call 
-      " autoupdate to that we get a new -MiniBufExplorer- window.
+      " autoupdate so that we get a new -MiniBufExplorer- window.
       if bufname('%') == '-MiniBufExplorer-'
         resize
         let l:saveAutoUpdate = g:miniBufExplorerAutoUpdate
@@ -1050,6 +1057,15 @@ endfunction
 " are no more modifiable buffers then stay on the current buffer.
 "
 function! <SID>CycleBuffer(forward)
+
+  " The following hack handles the case where we only have one
+  " window open and it is too small
+  let l:saveAutoUpdate = g:miniBufExplorerAutoUpdate
+  if (winbufnr(2) == -1)
+    resize
+    let g:miniBufExplorerAutoUpdate = 0
+  endif
+  
   " Change buffer (keeping track of before and after buffers)
   let l:origBuf = bufnr('%')
   if (a:forward == 1)
@@ -1058,7 +1074,7 @@ function! <SID>CycleBuffer(forward)
     bp!
   endif
   let l:curBuf  = bufnr('%')
-  
+
   " Skip any non-modifiable buffers, but don't cycle forever
   " This should stop us from stopping in any of the [Explorers]
   while getbufvar(l:curBuf, '&modifiable') == 0 && l:origBuf != l:curBuf
@@ -1069,6 +1085,11 @@ function! <SID>CycleBuffer(forward)
     endif
     let l:curBuf = bufnr('%')
   endwhile
+
+  let g:miniBufExplorerAutoUpdate = l:saveAutoUpdate
+  if (l:saveAutoUpdate == 1)
+    call <SID>AutoUpdate(-1)
+  endif
 
 endfunction
 
