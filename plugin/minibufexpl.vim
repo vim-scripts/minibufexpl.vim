@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Wednesday, March 26, 2003
-"      Version: 6.2.3
+"  Last Change: Friday, March 28, 2003
+"      Version: 6.2.4
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -135,17 +135,15 @@
 "               at a command prompt right before you do the operation that is
 "               failing.
 "
-" Known Issues: The 'set hidden' option is not compatible with MBE.
-"               If the VIM developers provide a different mechanism for us to 
-"               detect the difference between an Explorer buffer and a regular 
-"               buffer we can remove this restriction. Otherwise, we are pretty 
-"               well stuck with this.
-"
-"               When debugging is turned on and set to output to a window, there
+" Known Issues: When debugging is turned on and set to output to a window, there
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.2.3 o Added miniBufExplTabWrap option. It is turned 
+"      History: 6.2.4 o Because of the autocommand switch (see 6.2.0) it 
+"                       was possible to remove the restriction on the
+"                       :set hidden option. It is now possible to use
+"                       this option with MBE.
+"               6.2.3 o Added miniBufExplTabWrap option. It is turned 
 "                       off by default. When turned on spaces are added
 "                       between tabs and gq} is issued to perform line
 "                       formatting. This won't work very well if filenames
@@ -278,23 +276,6 @@
 "               you don't want to control from MBE
 "
 "=============================================================================
-
-"
-" set hidden is bad (for MBE) so check for it and 
-" don't bother loading MBE if it is. 
-" 
-" If you are getting this error and wondering what 
-" to do about it, you probably have 'set hidden' in
-" your .vimrc (or maybe one of your other plugins
-" sets this.) If this is in your .vimrc, try 
-" commenting it out. If you are experiencing a 
-" plugin incompatibility, please let me know which
-" plugin you are having a problem with. 
-"
-if &hidden
-  call confirm("MiniBufExplorer will not be loaded because the 'hidden' option is turned on.", 'OK')
-  finish
-endif
 
 "
 " Has this plugin already been loaded?
@@ -912,9 +893,9 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
         " Check to see if the buffer is a blank or not. If the buffer does have
         " a name, process it.
         if(strlen(l:BufName))
-          " Only show modifiable non-hidden buffers (The idea is that we don't 
+          " Only show modifiable buffers (The idea is that we don't 
           " want to show Explorers)
-          if (getbufvar(l:i, '&modifiable') == 1 && getbufvar(l:i, '&hidden') == 0 && BufName != '-MiniBufExplorer-')
+          if (getbufvar(l:i, '&modifiable') == 1 && BufName != '-MiniBufExplorer-')
             
             " Get filename & Remove []'s & ()'s
             let l:shortBufName = fnamemodify(l:BufName, ":t")                  
@@ -993,9 +974,9 @@ function! <SID>HasEligibleBuffers(delBufNum)
         " Check to see if the buffer is a blank or not. If the buffer does have
         " a name, process it.
         if (strlen(l:BufName))
-          " Only show modifiable non-hidden buffers (The idea is that we don't 
+          " Only show modifiable buffers (The idea is that we don't 
           " want to show Explorers)
-          if ((getbufvar(l:i, '&modifiable') == 1) && getbufvar(l:i, '&hidden') == 0 && (BufName != '-MiniBufExplorer-'))
+          if ((getbufvar(l:i, '&modifiable') == 1) && (BufName != '-MiniBufExplorer-'))
             
               let l:found = l:found + 1
   
@@ -1254,8 +1235,7 @@ function! <SID>MBEDeleteBuffer()
 
     " If buffer is being displayed in a window then 
     " move window to a different buffer before 
-    " deleting this one. Don't move to a hidden 
-    " buffer if that is possible.
+    " deleting this one. 
     let l:winNum = (bufwinnr(l:selBufName) + 0)
     " while we have windows that contain our buffer
     while l:winNum != -1 
@@ -1386,14 +1366,6 @@ endfunction
 " capability.
 "
 function! <SID>DEBUG(msg, level)
-
-  if &hidden
-    " Hopefully folks won't get here since we do the startup check, but it 
-    " is possible to load MBE and then turn hidden on afterwards. This check
-    " attempts to make sure that this doesn't happen. 
-    call confirm("MiniBufExplorer does not work properly when the 'hidden' option is turned on, so it is being turned off.", 'OK')
-    set nohidden
-  endif
 
   if g:miniBufExplorerDebugLevel >= a:level
 
