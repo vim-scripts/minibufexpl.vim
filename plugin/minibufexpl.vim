@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Monday, January 28, 2002
-"      Version: 6.0.6
+"  Last Change: Monday, February 4, 2002
+"      Version: 6.0.7
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -86,7 +86,24 @@
 "                     will not.
 "
 "
-"      History: 6.0.6 Fixed register overwrite bug found by Sébastien Pierre
+"      History: 6.0.7 o Handling BufDelete autocmd so that the UI updates 
+"                       properly when using :bd (rather than going through 
+"                       the MBE UI.)
+"                     o The AutoUpdate code will now close the MBE window when 
+"                       there is a single eligible buffer available.
+"                       This has the usefull side effect of stopping the MBE
+"                       window from the VIM session open when you close the 
+"                       last buffer.
+"                     o Added functions, commands and maps to close & update
+"                       the MBE window (<leader>mbc and <leader>mbu.)
+"                     o Made MBE open/close state be sticky if set through
+"                       StartExplorer(1) or StopExplorer(1), which are 
+"                       called from the standard mappings. So if you close
+"                       the mbe window with \mbc it won't be automatically 
+"                       opened again unless you do a \mbe (or restart VIM).
+"                     o Removed spaces between "tabs" (even more mini :)
+"                     o Simplified MBE tab processing 
+"               6.0.6 Fixed register overwrite bug found by Sébastien Pierre
 "               6.0.5 Fixed an issue with window sizing when we run out of 
 "                     buffers.  Also fixed some weird commenting bugs.
 "                     Added more optional fancy window/buffer navigation:
@@ -112,6 +129,12 @@
 "                     reduces cluter when you are only working on a
 "                     single file.
 "               6.0.0 Initial Release on November 20, 2001
+"
+"         Todo: o Provide better support for user defined syntax highlighting
+"               o Add the ability to specify a regexp for eligible buffers
+"                 allowing the ability to filter out certain buffers that 
+"                 you don't want to control from MBE
+"
 "=============================================================================
 
 "
@@ -124,22 +147,37 @@ endif
 let loaded_minibufexplorer = 1
 
 " 
-" Setup mbe map
+" If we don't already have a keyboard
+" mapping for mbe then create one.
 " 
 if !hasmapto('<Plug>MiniBufExplorer')
   map <unique> <Leader>mbe <Plug>MiniBufExplorer
 endif
+if !hasmapto('<Plug>CMiniBufExplorer')
+  map <unique> <Leader>mbc <Plug>CMiniBufExplorer
+endif
+if !hasmapto('<Plug>UMiniBufExplorer')
+  map <unique> <Leader>mbu <Plug>UMiniBufExplorer
+endif
 
 " 
-" Setup <script> map
+" Setup <Script> internal map.
 " 
-map <unique> <script> <Plug>MiniBufExplorer :call <SID>StartExplorer()<CR>
+noremap <unique> <script> <Plug>MiniBufExplorer  :call <SID>StartExplorer(1, -1)<CR>:<BS>
+noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1)<CR>:<BS>
+noremap <unique> <script> <Plug>UMiniBufExplorer :call <SID>AutoUpdate(-1)<CR>:<BS>
 
 " 
-" Create command.
+" Create command mbe command.
 " 
 if !exists(':MiniBufExplorer')
-  command! MiniBufExplorer :call <SID>StartExplorer()
+  command! MiniBufExplorer :call <SID>StartExplorer(1, -1)
+endif
+if !exists(':CMiniBufExplorer')
+  command! CMiniBufExplorer :call <SID>StopExplorer(1)
+endif
+if !exists(':UMiniBufExplorer')
+  command! UMiniBufExplorer :call <SID>AutoUpdate(-1)
 endif
 
 "
@@ -237,8 +275,8 @@ endif
 " in the current window then perform the remapping
 "
 if g:miniBufExplMapCTabSwitchBufs
-  noremap <C-TAB>   :call <SID>CycleBuffer(1)<CR>
-  noremap <C-S-TAB> :call <SID>CycleBuffer(0)<CR>
+  noremap <C-TAB>   :call <SID>CycleBuffer(1)<CR>:<BS>
+  noremap <C-S-TAB> :call <SID>CycleBuffer(0)<CR>:<BS>
 endif
 
 "
@@ -257,24 +295,29 @@ endif
 " updated automatically.
 "
 augroup MiniBufExplorer
-autocmd MiniBufExplorer BufReadPost * call <SID>AutoUpdate()
-autocmd MiniBufExplorer BufNewFile * call <SID>AutoUpdate()
-autocmd MiniBufExplorer BufNew * call <SID>AutoUpdate()
-autocmd MiniBufExplorer VimEnter * let g:miniBufExplorerAutoUpdate = 1 |call <SID>AutoUpdate()
+autocmd MiniBufExplorer BufReadPost * call <SID>DEBUG('BufReadPost AutoCmd', 10) |call <SID>AutoUpdate(-1)
+autocmd MiniBufExplorer BufNewFile  * call <SID>DEBUG('BufNewFile AutoCmd', 10) |call <SID>AutoUpdate(-1)
+autocmd MiniBufExplorer BufNew      * call <SID>DEBUG('BufNew AutoCmd', 10) |call <SID>AutoUpdate(-1)
+autocmd MiniBufExplorer BufDelete   * call <SID>DEBUG('BufDelete AutoCmd', 10) |call <SID>AutoUpdate(expand('<abuf>'))
+autocmd MiniBufExplorer VimEnter    * call <SID>DEBUG('VimEnter AutoCmd', 10) |let g:miniBufExplorerAutoUpdate = 1 |call <SID>AutoUpdate(-1)
 
 " 
 " StartExplorer
 " 
 " Sets up our explorer and causes it to be displayed
 "
-function! <SID>StartExplorer()
+function! <SID>StartExplorer(sticky, delBufNum)
   call <SID>DEBUG('Entering StartExplorer()',10)
+
+  if a:sticky == 1
+    let g:miniBufExplorerAutoUpdate = 1
+  endif
 
   call <SID>FindCreateExplorer()
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
-    call <SID>DEBUG('DisplayBuffers called in invalid window',1)
+    call <SID>DEBUG('StartExplorer called in invalid window',1)
     return
   endif
 
@@ -306,13 +349,13 @@ function! <SID>StartExplorer()
 
   " If you press return in the -MiniBufExplorer- then try
   " to open the selected buffer in the previous window.
-  nnoremap <buffer> <cr> :call <SID>SelectBuffer()<cr>
+  nnoremap <buffer> <CR> :call <SID>MBESelectBuffer()<CR>:<BS>
   " If you DoubleClick in the -MiniBufExplorer- then try
   " to open the selected buffer in the previous window.
-  nnoremap <buffer> <2-leftmouse> :call <SID>DoubleClick()<cr>
+  nnoremap <buffer> <2-LEFTMOUSE> :call <SID>MBEDoubleClick()<CR>:<BS>
   " If you press d in the -MiniBufExplorer- then try to
   " delete the selected buffer.
-  nnoremap <buffer> d :call <SID>DeleteBuffer()<cr>
+  nnoremap <buffer> d :call <SID>MBEDeleteBuffer()<CR>:<BS>
   " The following allow us to use regular movement keys to 
   " scroll in a wrapped single line buffer
   nnoremap <buffer> j gj
@@ -322,13 +365,57 @@ function! <SID>StartExplorer()
   " The following allows for quicker moving between buffer
   " names in the [MBE] window it also saves the last-pattern
   " and restores it.
-  nnoremap <buffer> <TAB>   :let g:SaveSearchMBE=@/<CR>:let g:SaveHlsMBE=&hls<CR>:set nohls<CR>/\[[0-9]*:<CR>:let @/=g:SaveSearchMBE<CR>:let &hls = g:SaveHlsMBE<CR>:unlet g:SaveSearchMBE<CR>:unlet g:SaveHlsMBE<CR>
-  nnoremap <buffer> <S-TAB> :let g:SaveSearchMBE=@/<CR>:let g:SaveHlsMBE=&hls<CR>:set nohls<CR>?\[[0-9]*:<CR>:let @/=g:SaveSearchMBE<CR>:let &hls = g:SaveHlsMBE<CR>:unlet g:SaveSearchMBE<CR>:unlet g:SaveHlsMBE<CR>
+  nnoremap <buffer> <TAB>   :call search('\[[0-9]*:[^\]]*\]')<CR>:<BS>
+  nnoremap <buffer> <S-TAB> :call search('\[[0-9]*:[^\]]*\]','b')<CR>:<BS>
  
-  call <SID>DisplayBuffers()
+  call <SID>DisplayBuffers(a:delBufNum)
 
   let &report  = l:save_rep
   let &showcmd = l:save_sc
+
+endfunction
+
+"
+" StopExplorer
+"
+" Looks for our explorer and closes the window if it is open
+"
+function! <SID>StopExplorer(sticky)
+  call <SID>DEBUG('Entering StopExplorer()',10)
+
+  if a:sticky == 1
+    let g:miniBufExplorerAutoUpdate = 0
+  endif
+
+  let l:winNum = <SID>FindExplorer()
+
+  if l:winNum != -1 
+    exec l:winNum.' wincmd w'
+    silent! close
+    wincmd p
+  endif
+endfunction
+
+"
+" FindExplorer
+"
+" Return the window number of the explorer buffer, if none is found then 
+" returns -1.
+"
+function! <SID>FindExplorer()
+  call <SID>DEBUG('Entering FindExplorer()',10)
+
+  " Try to find an existing window that contains 
+  " -MiniBufExplorer-. 
+  let l:bufNum = bufnr('MiniBufExplorer')
+  if l:bufNum != -1
+    call <SID>DEBUG('-MiniBufExplorer- found in buffer: '.l:bufNum,9)
+    let l:winNum = bufwinnr(l:bufNum)
+  else
+    let l:winNum = -1
+  endif
+
+  return l:winNum
 
 endfunction
 
@@ -347,16 +434,11 @@ function! <SID>FindCreateExplorer()
   " Set to our new values.
   let &splitbelow = g:miniBufExplSplitBelow
 
-  " Try to find an existing window that contains 
-  " -MiniBufExplorer-. If found goto the existing 
-  " window, otherwise split open a new window.
-  let l:bufNum = bufnr('MiniBufExplorer')
-  if l:bufNum != -1
-    call <SID>DEBUG('-MiniBufExplorer- found in buffer: '.l:bufNum,9)
-    let l:winNum = bufwinnr(l:bufNum)
-  else
-    let l:winNum = -1
-  endif
+  " Try to find an existing explorer window
+  let l:winNum = <SID>FindExplorer()
+
+  " If found goto the existing window, otherwise 
+  " split open a new window.
   if l:winNum != -1
     call <SID>DEBUG('Found window: '.l:winNum,9)
     exec l:winNum.' wincmd w'
@@ -373,9 +455,13 @@ function! <SID>FindCreateExplorer()
         sp -MiniBufExplorer-
     endif
 
-    " Make sure we are in our window
-    if bufname('%') != '-MiniBufExplorer-'
-      call <SID>DEBUG('DisplayBuffers called in invalid window',1)
+    " Try to find an existing explorer window
+    let l:winNum = <SID>FindExplorer()
+    if l:winNum != -1
+      call <SID>DEBUG('Created and then found window: '.l:winNum,9)
+      exec l:winNum.' wincmd w'
+    else
+      call <SID>DEBUG('FindCreateExplorer failed to create -MiniBufExplorer- window.',1)
       return
     endif
 
@@ -400,7 +486,7 @@ endfunction
 " Makes sure we are in our explorer, then erases the current buffer and turns 
 " it into a mini buffer explorer window.
 "
-function! <SID>DisplayBuffers()
+function! <SID>DisplayBuffers(delBufNum)
   call <SID>DEBUG('Entering DisplayBuffers()',10)
   
   " Make sure we are in our window
@@ -415,7 +501,7 @@ function! <SID>DisplayBuffers()
   " Delete all lines in buffer.
   1,$d _
   
-  call <SID>ShowBuffers()
+  call <SID>ShowBuffers(a:delBufNum)
   call <SID>ResizeWindow()
   
   normal! zz
@@ -436,7 +522,7 @@ function! <SID>ResizeWindow()
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
-    call <SID>DEBUG('DisplayBuffers called in invalid window',1)
+    call <SID>DEBUG('ResizeWindow called in invalid window',1)
     return
   endif
 
@@ -463,7 +549,7 @@ endfunction
 " buffers to the current buffer. Special marks are added for buffers that 
 " are in one or more windows (*) and buffers that have been modified (+)
 "
-function! <SID>ShowBuffers()
+function! <SID>ShowBuffers(delBufNum)
   call <SID>DEBUG('Entering ShowBuffers()',10)
 
   " Make sure we are in our window
@@ -486,36 +572,39 @@ function! <SID>ShowBuffers()
   while(l:i <= l:NBuffers)
     let l:i = l:i + 1
    
-    " Make sure the buffer in question is listed.
-    if(getbufvar(l:i, '&buflisted') == 1)
-      " Get the name of the buffer.
-      let l:BufName = bufname(l:i)
-      " Check to see if the buffer is a blank or not. If the buffer does have
-      " a name, process it.
-      if(strlen(l:BufName))
-        " Only show modifiable non-hidden buffers (The idea is that we don't 
-        " want to show Explorers)
-        if (getbufvar(l:i, '&modifiable') == 1 && 
-           \getbufvar(l:i, '&hidden') == 0 &&
-           \BufName != '-MiniBufExplorer-')
-          
-          " Get filename & Remove []'s & ()'s
-          let l:shortBufName = fnamemodify(l:BufName, ":t")                  
-          let l:shortBufName = substitute(l:shortBufName, '[][()]', '', 'g') 
-          let l:fileNames = l:fileNames.'['.l:i.':'.l:shortBufName.']'
+    " If we have a delBufNum and it is the current
+    " buffer then ignore the current buffer. 
+    " Otherwise, continue.
+    if (a:delBufNum == -1 || l:i != a:delBufNum)
+      " Make sure the buffer in question is listed.
+      if(getbufvar(l:i, '&buflisted') == 1)
+        " Get the name of the buffer.
+        let l:BufName = bufname(l:i)
+        " Check to see if the buffer is a blank or not. If the buffer does have
+        " a name, process it.
+        if(strlen(l:BufName))
+          " Only show modifiable non-hidden buffers (The idea is that we don't 
+          " want to show Explorers)
+          if (getbufvar(l:i, '&modifiable') == 1 && 
+             \getbufvar(l:i, '&hidden') == 0 &&
+             \BufName != '-MiniBufExplorer-')
+            
+            " Get filename & Remove []'s & ()'s
+            let l:shortBufName = fnamemodify(l:BufName, ":t")                  
+            let l:shortBufName = substitute(l:shortBufName, '[][()]', '', 'g') 
+            let l:fileNames = l:fileNames.'['.l:i.':'.l:shortBufName.']'
+  
+            " If the buffer is open in a window mark it
+            if bufwinnr(l:i) != -1
+              let l:fileNames = l:fileNames . '*'
+            endif
 
-          " If the buffer is open in a window mark it
-          if bufwinnr(l:i) != -1
-            let l:fileNames = l:fileNames . '*'
+            " If the buffer is modified then mark it
+            if(getbufvar(l:i, '&modified') == 1)
+              let l:fileNames = l:fileNames . '+'
+            endif
+
           endif
-
-          " If the buffer is modified then mark it
-          if(getbufvar(l:i, '&modified') == 1)
-            let l:fileNames = l:fileNames . '+'
-          endif
-
-          let l:fileNames = l:fileNames . ' '
-
         endif
       endif
     endif
@@ -533,13 +622,15 @@ function! <SID>ShowBuffers()
 endfunction
 
 " 
-" HasEligibleBuffer
+" HasEligibleBuffers
 " 
 " Returns 1 if there are any buffers that can be displayed in a 
-" mini buffer explorer. Otherwise returns 0
+" mini buffer explorer. Otherwise returns 0. If delBufNum is
+" any non -1 value then don't include that buffer in the list
+" of eligible buffers.
 "
-function! <SID>HasEligibleBuffer()
-  call <SID>DEBUG('Entering HasEligibleBuffer()',10)
+function! <SID>HasEligibleBuffers(delBufNum)
+  call <SID>DEBUG('Entering HasEligibleBuffers()',10)
 
   let l:save_rep = &report
   let l:save_sc = &showcmd
@@ -561,22 +652,26 @@ function! <SID>HasEligibleBuffer()
   while(l:i <= l:NBuffers && l:found < l:needed)
     let l:i = l:i + 1
    
-    " Make sure the buffer in question is listed.
-    if (getbufvar(l:i, '&buflisted') == 1)
-      " Get the name of the buffer.
-      let l:BufName = bufname(l:i)
-      " Check to see if the buffer is a blank or not. If the buffer does have
-      " a name, process it.
-      if (strlen(l:BufName))
-        " Only show modifiable non-hidden buffers (The idea is that we don't 
-        " want to show Explorers)
-        if ((getbufvar(l:i, '&modifiable') == 1) && 
-           \getbufvar(l:i, '&hidden') == 0 &&
-           \(BufName != '-MiniBufExplorer-'))
-          
-            let l:found = l:found + 1
-            call <SID>DEBUG('Found '.l:found.' eligible buffers so far.',6)
-
+    " If we have a delBufNum and it is the current
+    " buffer then ignore the current buffer. 
+    " Otherwise, continue.
+    if (a:delBufNum == -1 || l:i != a:delBufNum)
+      " Make sure the buffer in question is listed.
+      if (getbufvar(l:i, '&buflisted') == 1)
+        " Get the name of the buffer.
+        let l:BufName = bufname(l:i)
+        " Check to see if the buffer is a blank or not. If the buffer does have
+        " a name, process it.
+        if (strlen(l:BufName))
+          " Only show modifiable non-hidden buffers (The idea is that we don't 
+          " want to show Explorers)
+          if ((getbufvar(l:i, '&modifiable') == 1) && 
+             \getbufvar(l:i, '&hidden') == 0 &&
+             \(BufName != '-MiniBufExplorer-'))
+            
+              let l:found = l:found + 1
+  
+          endif
         endif
       endif
     endif
@@ -584,6 +679,8 @@ function! <SID>HasEligibleBuffer()
 
   let &report  = l:save_rep
   let &showcmd = l:save_sc
+
+  call <SID>DEBUG('HasEligibleBuffers found '.l:found.' eligible buffers of '.l:needed.' needed',6)
 
   return (l:found >= l:needed)
   
@@ -594,28 +691,39 @@ endfunction
 "
 " IF auto update is turned on     AND
 "    we are in a real buffer      AND
-"    we are not in our own window AND
 "    we have an eligible buffer   THEN
 " Update our explorer and get back to the current window
 "
-function! <SID>AutoUpdate()
-  call <SID>DEBUG('Entering AutoUpdate()',10)
+" If we get a buffer number for a buffer that 
+" is being deleted, we need to make sure and 
+" remove the buffer from the list of eligible 
+" buffers in case we are down to one eligible
+" buffer, in which case we will want to close
+" the MBE window.
+"
+function! <SID>AutoUpdate(delBufNum)
+  call <SID>DEBUG('Entering AutoUpdate()', 10)
+
+  if (a:delBufNum != -1)
+    call <SID>DEBUG('AutoUpdate will make sure that buffer '.a:delBufNum.' is not included in the buffer list.', 5)
+  endif
 
   " Only allow updates when the AutoUpdate flag is set
   " this allows us to stop updates on startup.
   if g:miniBufExplorerAutoUpdate == 1
     " Only show MiniBufExplorer if we have a real buffer
     if bufnr('%') != -1 && bufname('%') != ""
-      " only update if we are not in our window
-      if bufname('%') != '-MiniBufExplorer-'
-        if <SID>HasEligibleBuffer()
-          call <SID>StartExplorer()
-          " if we are not already in the -MiniBufExplorer- window
-          " then goto the previous window (back to working buffer)
-          if bufname('#') != '-MiniBufExplorer-'
-            wincmd p
-          endif
+      if <SID>HasEligibleBuffers(a:delBufNum) == 1
+        call <SID>DEBUG('About to call StartExplorer', 10)
+        call <SID>StartExplorer(0, a:delBufNum)
+        " if we are not already in the -MiniBufExplorer- window
+        " then goto the previous window (back to working buffer)
+        if bufname('#') != '-MiniBufExplorer-'
+          wincmd p
         endif
+      else
+        call <SID>DEBUG('Failed in eligible check', 10)
+        call <SID>StopExplorer(0)
       endif
     endif
   endif
@@ -651,17 +759,17 @@ function! <SID>GetSelectedBuffer()
 endfunction
 
 " 
-" SelectBuffer.
+" MBESelectBuffer.
 " 
 " If we are in our explorer, then we attempt to open the buffer under the
 " cursor in the previous window.
 "
-function! <SID>SelectBuffer()
-  call <SID>DEBUG('Entering SelectBuffer()',10)
+function! <SID>MBESelectBuffer()
+  call <SID>DEBUG('Entering MBESelectBuffer()',10)
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
-    call <SID>DEBUG('SelectBuffer called in invalid window',1)
+    call <SID>DEBUG('MBESelectBuffer called in invalid window',1)
     return 
   endif
 
@@ -674,15 +782,29 @@ function! <SID>SelectBuffer()
     " Switch to the previous window
     wincmd p
     " If we are in the buffer explorer then try another window
+    let l:saveAutoUpdate = 0
     if bufname('%') == '-MiniBufExplorer-'
       wincmd w
+      " The following nasty hack handles the case where -MiniBufExplorer-
+      " is the only window left. In this case we need to replace our
+      " window without triggering autoupdate then we need to call 
+      " autoupdate to that we get a new -MiniBufExplorer- window.
+      if bufname('%') == '-MiniBufExplorer-'
+        resize
+        let l:saveAutoUpdate = g:miniBufExplorerAutoUpdate
+        let g:miniBufExplorerAutoUpdate = 0
+        exec('b! '.l:bufnr)
+        let g:miniBufExplorerAutoUpdate = l:saveAutoUpdate
+      endif
     endif
-    " And load the selected buffer
-    exec('b! '.l:bufnr)
-    " Update our window
-    "call <SID>DisplayBuffers() !!! should autocmd
-    " And go back to the previous window (again)
-    "wincmd p !!! should autocmd
+
+    if (l:saveAutoUpdate == 1)
+      call <SID>AutoUpdate(-1)
+    else
+      exec('b! '.l:bufnr)
+    endif
+
+
   endif
 
   let &showcmd = l:save_sc
@@ -697,12 +819,12 @@ endfunction
 " window, this routine will attempt to get different buffers into the 
 " windows that will be affected so that windows don't get removed.
 "
-function! <SID>DeleteBuffer()
-  call <SID>DEBUG('Entering DeleteBuffer()',10)
+function! <SID>MBEDeleteBuffer()
+  call <SID>DEBUG('Entering MBEDeleteBuffer()',10)
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
-    call <SID>DEBUG('DeleteBuffer called in invalid window',1)
+    call <SID>DEBUG('MBEDeleteBuffer called in invalid window',1)
     return 
   endif
 
@@ -769,21 +891,11 @@ function! <SID>DeleteBuffer()
     endif
   
     " Delete the buffer selected.
-    exec('bd '.l:selBuf)
-
-    " Allow us to update the display
-    setlocal modifiable
-
-    " Update the buffer list
-    if bufname('%') == '-MiniBufExplorer-'
-      call <SID>DisplayBuffers()
-    else
-      call <SID>DEBUG('Unable to update -MiniBufExplorer- window',1)
-    endif
+    call <SID>DEBUG('About to delete buffer: '.l:selBuf,5)
+    exec('silent! bd '.l:selBuf)
 
   endif
 
-  setlocal nomodifiable
 
   let &report  = l:save_rep
   let &showcmd = l:save_sc
@@ -820,11 +932,11 @@ function! <SID>CycleBuffer(forward)
 endfunction
 
 "
-" DoubleClick - Double click with the mouse.
+" MBEDoubleClick - Double click with the mouse.
 "
-function! s:DoubleClick()
-  call <SID>DEBUG('Entering DoubleClick()',10)
-  call <SID>SelectBuffer()
+function! s:MBEDoubleClick()
+  call <SID>DEBUG('Entering MBEDoubleClick()',10)
+  call <SID>MBESelectBuffer()
 endfunction
 
 "
@@ -834,6 +946,6 @@ endfunction
 "
 function! <SID>DEBUG(msg, level)
   if g:miniBufExplorerDebugLevel >= a:level
-    echo confirm(a:msg, 'OK')
+    call confirm(a:msg, 'OK')
   endif
 endfunction
