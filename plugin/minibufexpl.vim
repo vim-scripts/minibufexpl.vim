@@ -1,5 +1,5 @@
 "=============================================================================
-"    Copyright: Copyright (C) 2001 Bindu Wavell & Jeff Lanzarotta
+"    Copyright: Copyright (C) 2002 Bindu Wavell 
 "               Permission is hereby granted to use and distribute this code,
 "               with or without modifications, provided that this copyright
 "               notice is copied with it. Like anything else that's free,
@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Monday, February 4, 2002
-"      Version: 6.0.7
+"  Last Change: Tuesday, August 6, 2002
+"      Version: 6.0.8
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -42,7 +42,7 @@
 "                 let g:miniBufExplSplitBelow=1  " Put new window below
 "                                                " current.
 "
-"               The default for this is read from the &splitbellow vim option.
+"               The default for this is read from the &splitbelow VIM option.
 "
 "               By default we are now (as of 6.0.2) forcing the -MiniBufExplorer-
 "               window to open up at the edge of the screen. You can turn this 
@@ -81,19 +81,64 @@
 "
 "                 let g:miniBufExplMapCTabSwitchWindows = 1
 "
+"
 "               NOTE: If you set the ...TabSwitchBufs AND ...TabSwitchWindows, 
 "                     ...TabSwitchBufs will be enabled and ...TabSwitchWIndows 
 "                     will not.
 "
+"               MBE has had a basic debugging capability for quite some time.
+"               However, it has not been very friendly in the past. As of 6.0.8, 
+"               you can put one of each of the following into your .vimrc:
 "
-"      History: 6.0.7 o Handling BufDelete autocmd so that the UI updates 
+"                 let g:miniBufExplorerDebugLevel = 0  " MBE serious errors output
+"                 let g:miniBufExplorerDebugLevel = 4  " MBE all errors output
+"                 let g:miniBufExplorerDebugLevel = 10 " MBE reports everything
+"
+"                 let g:miniBufExplorerDebugMode  = 0  " Errors will show up in 
+"                                                      " a vim window
+"                 let g:miniBufExplorerDebugMode  = 1  " Uses VIM's echo function
+"                                                      " to display on the screen
+"                 let g:miniBufExplorerDebugMode  = 2  " Writes to a file
+"                                                      " MiniBufExplorer.DBG
+"
+"               Or if you are able to start VIM, you might just perform these
+"               at a command prompt right before you do the operation that is
+"               failing.
+"
+" Known Issues: The 'set hidden' option is not compatible with MBE.
+"               If the VIM developers provide a different mechanism for us to 
+"               detect the difference between an Explorer buffer and a regular 
+"               buffer we can remove this restriction. Otherwise, we are pretty 
+"               well stuck with this.
+"
+"               When debugging is turned on and set to output to a window, there
+"               are some cases where the window is opened more than once, there
+"               are other cases where an old debug window can be lost.
+"
+"      History: 6.0.8 o Apparently some VIM builds are having a hard time with
+"                       line continuation in scripts so the few that were here
+"                       have been removed.
+"                     o Generalized FindExplorer and FindCreateExplorer so
+"                       that they can be used for the debug window. Renaming
+"                       to FindWindow and FindCreateWindow.
+"                     o Updated debugging code so that debug output is put into
+"                       a buffer which can then be written to disk or emailed
+"                       to me when someone is having a major issue. Can also
+"                       write directly to a file (VERY SLOWLY) on UNIX or Win32
+"                       (not 95 or 98 at the moment) or use VIM's echo function 
+"                       to display the output to the screen.
+"                     o Several people have had issues when the hidden option 
+"                       is turned on. So I have put in several checks to make
+"                       sure folks know this if they try to use MBE with this
+"                       option set.
+"               6.0.7 o Handling BufDelete autocmd so that the UI updates 
 "                       properly when using :bd (rather than going through 
 "                       the MBE UI.)
 "                     o The AutoUpdate code will now close the MBE window when 
 "                       there is a single eligible buffer available.
 "                       This has the usefull side effect of stopping the MBE
-"                       window from the VIM session open when you close the 
-"                       last buffer.
+"                       window from blocking the VIM session open when you close 
+"                       the last buffer.
 "                     o Added functions, commands and maps to close & update
 "                       the MBE window (<leader>mbc and <leader>mbu.)
 "                     o Made MBE open/close state be sticky if set through
@@ -103,10 +148,11 @@
 "                       opened again unless you do a \mbe (or restart VIM).
 "                     o Removed spaces between "tabs" (even more mini :)
 "                     o Simplified MBE tab processing 
-"               6.0.6 Fixed register overwrite bug found by Sébastien Pierre
-"               6.0.5 Fixed an issue with window sizing when we run out of 
-"                     buffers.  Also fixed some weird commenting bugs.
-"                     Added more optional fancy window/buffer navigation:
+"               6.0.6 o Fixed register overwrite bug found by Sébastien Pierre
+"               6.0.5 o Fixed an issue with window sizing when we run out of 
+"                       buffers.  
+"                     o Fixed some weird commenting bugs.  
+"                     o Added more optional fancy window/buffer navigation:
 "                     o You can turn on the capability to use control and the 
 "                       arrow keys to move between windows.
 "                     o You can turn on the ability to use <C-TAB> and 
@@ -115,20 +161,20 @@
 "                     o You can turn on the ability to use <C-TAB> and 
 "                       <C-S-TAB> to switch windows (forward and backwards 
 "                       respectively.)
-"               6.0.4 Added optional fancy window navigation: 
+"               6.0.4 o Added optional fancy window navigation: 
 "                     o Holding down control and pressing a vim direction 
 "                       [hjkl] will switch windows in the indicated direction.
-"               6.0.3 Changed buffer name to -MiniBufExplorer- to resolve
-"                     Issue in filename pattern matching on Windows.
-"               6.0.2 2 Changes requested by Suresh Govindachar
-"                     Added SplitToEdge option and set it on by default
-"                     Added tab and shift-tab mappings in [MBE] window
-"               6.0.1 Added MoreThanOne option and set it on by default
-"                     MiniBufExplorer will not automatically open until
-"                     more than one eligible buffers are opened. This
-"                     reduces cluter when you are only working on a
-"                     single file.
-"               6.0.0 Initial Release on November 20, 2001
+"               6.0.3 o Changed buffer name to -MiniBufExplorer- to resolve
+"                       Issue in filename pattern matching on Windows.
+"               6.0.2 o 2 Changes requested by Suresh Govindachar:
+"                     o Added SplitToEdge option and set it on by default
+"                     o Added tab and shift-tab mappings in [MBE] window
+"               6.0.1 o Added MoreThanOne option and set it on by default
+"                       MiniBufExplorer will not automatically open until
+"                       more than one eligible buffers are opened. This
+"                       reduces cluter when you are only working on a
+"                       single file.
+"               6.0.0 o Initial Release on November 20, 2001
 "
 "         Todo: o Provide better support for user defined syntax highlighting
 "               o Add the ability to specify a regexp for eligible buffers
@@ -138,6 +184,23 @@
 "=============================================================================
 
 "
+" set hidden is bad (for MBE) so check for it and 
+" don't bother loading MBE if it is. 
+" 
+" If you are getting this error and wondering what 
+" to do about it, you probably have 'set hidden' in
+" your .vimrc (or maybe one of your other plugins
+" sets this.) If this is in your .vimrc, try 
+" commenting it out. If you are experiencing a 
+" plugin incompatibility, please let me know which
+" plugin you are having a problem with. 
+"
+if &hidden
+  call confirm("MiniBufExplorer will not be loaded because the 'hidden' option is turned on.", 'OK')
+  finish
+endif
+
+"
 " Has this plugin already been loaded?
 "
 if exists('loaded_minibufexplorer')
@@ -145,6 +208,7 @@ if exists('loaded_minibufexplorer')
   finish
 endif
 let loaded_minibufexplorer = 1
+let s:debugIndex = 0
 
 " 
 " If we don't already have a keyboard
@@ -164,7 +228,7 @@ endif
 " Setup <Script> internal map.
 " 
 noremap <unique> <script> <Plug>MiniBufExplorer  :call <SID>StartExplorer(1, -1)<CR>:<BS>
-noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1)<CR>:<BS>
+noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1, -1)<CR>:<BS>
 noremap <unique> <script> <Plug>UMiniBufExplorer :call <SID>AutoUpdate(-1)<CR>:<BS>
 
 " 
@@ -174,7 +238,7 @@ if !exists(':MiniBufExplorer')
   command! MiniBufExplorer :call <SID>StartExplorer(1, -1)
 endif
 if !exists(':CMiniBufExplorer')
-  command! CMiniBufExplorer :call <SID>StopExplorer(1)
+  command! CMiniBufExplorer :call <SID>StopExplorer(1, -1)
 endif
 if !exists(':UMiniBufExplorer')
   command! UMiniBufExplorer :call <SID>AutoUpdate(-1)
@@ -183,8 +247,24 @@ endif
 "
 " Debug Level
 "
+" 0 = no logging
+" 1=5 = errors ; 1 is the most important
+" 5-9 = info ; 5 is the most important
+" 10 = Entry/Exit
 if !exists('g:miniBufExplorerDebugLevel')
   let g:miniBufExplorerDebugLevel = 0 
+endif
+
+"
+" Debug Mode
+"
+" 0 = debug to a window
+" 1 = use vim's echo facility
+" 2 = write to a file named MiniBufExplorer.DBG
+"     in the directory where vim was started
+"     THIS IS VERY SLOW
+if !exists('g:miniBufExplorerDebugMode')
+  let g:miniBufExplorerDebugMode = 0 
 endif
 
 "
@@ -240,8 +320,7 @@ if !exists('g:miniBufExplMapCTabSwitchBufs')
 endif
 " Notice: that if CTabSwitchBufs is turned on then
 " we turn off CTabSwitchWindows.
-if g:miniBufExplMapCTabSwitchBufs == 1 ||
-   \!exists('g:miniBufExplMapCTabSwitchWindows')
+if g:miniBufExplMapCTabSwitchBufs == 1 || !exists('g:miniBufExplMapCTabSwitchWindows')
   let g:miniBufExplMapCTabSwitchWindows = 0
 endif
 
@@ -252,8 +331,7 @@ endif
 " Notice: I left g:miniBufExplMapWindowNav in for backward
 " compatibility. Eventually this mapping will be removed so
 " please use the newer g:miniBufExplMapWindowNavVim setting.
-if g:miniBufExplMapWindowNavVim || 
-   \g:miniBufExplMapWindowNav
+if g:miniBufExplMapWindowNavVim || g:miniBufExplMapWindowNav
   noremap <C-J> <C-W>j
   noremap <C-K> <C-W>k
   noremap <C-H> <C-W>h
@@ -307,13 +385,15 @@ autocmd MiniBufExplorer VimEnter    * call <SID>DEBUG('VimEnter AutoCmd', 10) |l
 " Sets up our explorer and causes it to be displayed
 "
 function! <SID>StartExplorer(sticky, delBufNum)
-  call <SID>DEBUG('Entering StartExplorer()',10)
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering StartExplorer()'   ,10)
+  call <SID>DEBUG('===========================',10)
 
   if a:sticky == 1
     let g:miniBufExplorerAutoUpdate = 1
   endif
 
-  call <SID>FindCreateExplorer()
+  call <SID>FindCreateWindow('-MiniBufExplorer-', -1, 1, 1)
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
@@ -373,6 +453,10 @@ function! <SID>StartExplorer(sticky, delBufNum)
   let &report  = l:save_rep
   let &showcmd = l:save_sc
 
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed StartExplorer()'  ,10)
+  call <SID>DEBUG('===========================',10)
+
 endfunction
 
 "
@@ -381,35 +465,46 @@ endfunction
 " Looks for our explorer and closes the window if it is open
 "
 function! <SID>StopExplorer(sticky)
-  call <SID>DEBUG('Entering StopExplorer()',10)
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering StopExplorer()'    ,10)
+  call <SID>DEBUG('===========================',10)
 
   if a:sticky == 1
     let g:miniBufExplorerAutoUpdate = 0
   endif
 
-  let l:winNum = <SID>FindExplorer()
+  let l:winNum = <SID>FindWindow('-MiniBufExplorer-', 1)
 
   if l:winNum != -1 
     exec l:winNum.' wincmd w'
     silent! close
     wincmd p
   endif
+
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed StopExplorer()'   ,10)
+  call <SID>DEBUG('===========================',10)
+
 endfunction
 
 "
-" FindExplorer
+" FindWindow
 "
-" Return the window number of the explorer buffer, if none is found then 
+" Return the window number of a named buffer, if none is found then 
 " returns -1.
 "
-function! <SID>FindExplorer()
-  call <SID>DEBUG('Entering FindExplorer()',10)
+function! <SID>FindWindow(bufName, doDebug)
+  if a:doDebug
+    call <SID>DEBUG('Entering FindWindow()',10)
+  endif
 
   " Try to find an existing window that contains 
-  " -MiniBufExplorer-. 
-  let l:bufNum = bufnr('MiniBufExplorer')
+  " our buffer.
+  let l:bufNum = bufnr(a:bufName)
   if l:bufNum != -1
-    call <SID>DEBUG('-MiniBufExplorer- found in buffer: '.l:bufNum,9)
+    if a:doDebug
+      call <SID>DEBUG('Found buffer ('.a:bufName.'): '.l:bufNum,9)
+    endif
     let l:winNum = bufwinnr(l:bufNum)
   else
     let l:winNum = -1
@@ -420,13 +515,20 @@ function! <SID>FindExplorer()
 endfunction
 
 " 
-" FindCreateExplorer
+" FindCreateWindow
 " 
-" Attempts to find a window with a mini buffer explorer. If it is found then 
-" moves there. Otherwise creates a new window and configures it.
+" Attempts to find a window for a named buffer. If it is found then 
+" moves there. Otherwise creates a new window and configures it and
+" moves there.
 "
-function! <SID>FindCreateExplorer()
-  call <SID>DEBUG('Entering FindCreateExplorer()',10)
+" forceEdge, -1 use defaults, 0 below, 1 above
+" isExplorer, 0 no, 1 yes 
+" doDebug, 0 no, 1 yes
+"
+function! <SID>FindCreateWindow(bufName, forceEdge, isExplorer, doDebug)
+  if a:doDebug
+    call <SID>DEBUG('Entering FindCreateWindow('.a:bufName.')',10)
+  endif
 
   " Save the user's split setting.
   let l:saveSplitBelow = &splitbelow
@@ -435,44 +537,61 @@ function! <SID>FindCreateExplorer()
   let &splitbelow = g:miniBufExplSplitBelow
 
   " Try to find an existing explorer window
-  let l:winNum = <SID>FindExplorer()
+  let l:winNum = <SID>FindWindow(a:bufName, a:doDebug)
 
   " If found goto the existing window, otherwise 
   " split open a new window.
   if l:winNum != -1
-    call <SID>DEBUG('Found window: '.l:winNum,9)
+    if a:doDebug
+      call <SID>DEBUG('Found window ('.a:bufName.'): '.l:winNum,9)
+    endif
     exec l:winNum.' wincmd w'
     let l:winFound = 1
   else
 
-    if g:miniBufExplSplitToEdge == 1
-        if &splitbelow
-            bo sp -MiniBufExplorer-
+    if g:miniBufExplSplitToEdge == 1 || a:forceEdge >= 0
+
+        let l:edge = &splitbelow
+        if a:forceEdge >= 0
+            let l:edge = a:forceEdge
+        endif
+
+        if l:edge
+            exec 'bo sp '.a:bufName
         else
-            to sp -MiniBufExplorer-
+            exec 'to sp '.a:bufName
         endif
     else
-        sp -MiniBufExplorer-
+        exec 'sp '.a:bufName
     endif
 
     " Try to find an existing explorer window
-    let l:winNum = <SID>FindExplorer()
+    let l:winNum = <SID>FindWindow(a:bufName, a:doDebug)
     if l:winNum != -1
-      call <SID>DEBUG('Created and then found window: '.l:winNum,9)
+      if a:doDebug
+        call <SID>DEBUG('Created and then found window ('.a:bufName.'): '.l:winNum,9)
+      endif
       exec l:winNum.' wincmd w'
     else
-      call <SID>DEBUG('FindCreateExplorer failed to create -MiniBufExplorer- window.',1)
+      if a:doDebug
+        call <SID>DEBUG('FindCreateWindow failed to create window ('.a:bufName.').',1)
+      endif
       return
     endif
 
-    " Turn off the swapfile, set the buffer type so that it won't get written,
-    " and so that it will get deleted when it gets hidden.
-    setlocal noswapfile
-    setlocal buftype=nofile
-    setlocal bufhidden=delete
-    " Turn on word wrap in our explorer
-    setlocal wrap
-    call <SID>DEBUG('Window created: '.winnr(),9)
+    if a:isExplorer
+      " Turn off the swapfile, set the buffer type so that it won't get written,
+      " and so that it will get deleted when it gets hidden and turn on word wrap.
+      setlocal noswapfile
+      setlocal buftype=nofile
+      setlocal bufhidden=delete
+      setlocal wrap
+    endif
+
+    if a:doDebug
+      call <SID>DEBUG('Window ('.a:bufName.') created: '.winnr(),9)
+    endif
+
   endif
 
   " Restore the user's split setting.
@@ -585,9 +704,7 @@ function! <SID>ShowBuffers(delBufNum)
         if(strlen(l:BufName))
           " Only show modifiable non-hidden buffers (The idea is that we don't 
           " want to show Explorers)
-          if (getbufvar(l:i, '&modifiable') == 1 && 
-             \getbufvar(l:i, '&hidden') == 0 &&
-             \BufName != '-MiniBufExplorer-')
+          if (getbufvar(l:i, '&modifiable') == 1 && getbufvar(l:i, '&hidden') == 0 && BufName != '-MiniBufExplorer-')
             
             " Get filename & Remove []'s & ()'s
             let l:shortBufName = fnamemodify(l:BufName, ":t")                  
@@ -665,9 +782,7 @@ function! <SID>HasEligibleBuffers(delBufNum)
         if (strlen(l:BufName))
           " Only show modifiable non-hidden buffers (The idea is that we don't 
           " want to show Explorers)
-          if ((getbufvar(l:i, '&modifiable') == 1) && 
-             \getbufvar(l:i, '&hidden') == 0 &&
-             \(BufName != '-MiniBufExplorer-'))
+          if ((getbufvar(l:i, '&modifiable') == 1) && getbufvar(l:i, '&hidden') == 0 && (BufName != '-MiniBufExplorer-'))
             
               let l:found = l:found + 1
   
@@ -702,7 +817,9 @@ endfunction
 " the MBE window.
 "
 function! <SID>AutoUpdate(delBufNum)
-  call <SID>DEBUG('Entering AutoUpdate()', 10)
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering AutoUpdate()'      ,10)
+  call <SID>DEBUG('===========================',10)
 
   if (a:delBufNum != -1)
     call <SID>DEBUG('AutoUpdate will make sure that buffer '.a:delBufNum.' is not included in the buffer list.', 5)
@@ -714,7 +831,7 @@ function! <SID>AutoUpdate(delBufNum)
     " Only show MiniBufExplorer if we have a real buffer
     if bufnr('%') != -1 && bufname('%') != ""
       if <SID>HasEligibleBuffers(a:delBufNum) == 1
-        call <SID>DEBUG('About to call StartExplorer', 10)
+        call <SID>DEBUG('About to call StartExplorer', 9)
         call <SID>StartExplorer(0, a:delBufNum)
         " if we are not already in the -MiniBufExplorer- window
         " then goto the previous window (back to working buffer)
@@ -722,11 +839,16 @@ function! <SID>AutoUpdate(delBufNum)
           wincmd p
         endif
       else
-        call <SID>DEBUG('Failed in eligible check', 10)
+        call <SID>DEBUG('Failed in eligible check', 9)
         call <SID>StopExplorer(0)
       endif
     endif
   endif
+
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed AutoUpdate()'     ,10)
+  call <SID>DEBUG('===========================',10)
+
 endfunction
 
 " 
@@ -765,7 +887,9 @@ endfunction
 " cursor in the previous window.
 "
 function! <SID>MBESelectBuffer()
-  call <SID>DEBUG('Entering MBESelectBuffer()',10)
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering MBESelectBuffer()' ,10)
+  call <SID>DEBUG('===========================',10)
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
@@ -809,6 +933,10 @@ function! <SID>MBESelectBuffer()
 
   let &showcmd = l:save_sc
 
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed MBESelectBuffer()',10)
+  call <SID>DEBUG('===========================',10)
+
 endfunction
 
 " 
@@ -820,7 +948,9 @@ endfunction
 " windows that will be affected so that windows don't get removed.
 "
 function! <SID>MBEDeleteBuffer()
-  call <SID>DEBUG('Entering MBEDeleteBuffer()',10)
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Entering MBEDeleteBuffer()' ,10)
+  call <SID>DEBUG('===========================',10)
 
   " Make sure we are in our window
   if bufname('%') != '-MiniBufExplorer-'
@@ -836,8 +966,12 @@ function! <SID>MBEDeleteBuffer()
   let l:selBuf     = <SID>GetSelectedBuffer()
   let l:selBufName = bufname(l:selBuf)
 
+  if l:selBufName == 'MiniBufExplorer.DBG' && g:miniBufExplorerDebugLevel > 0
+    call <SID>DEBUG('MBEDeleteBuffer will not delete the debug window, when debugging is turned on.',1)
+    return
+  endif
   
-  if l:selBuf != -1
+  if l:selBuf != -1 
     " Save previous window so that if we show a buffer after
     " deleting. The show will come up in the correct window.
     wincmd p
@@ -896,9 +1030,12 @@ function! <SID>MBEDeleteBuffer()
 
   endif
 
-
   let &report  = l:save_rep
   let &showcmd = l:save_sc
+
+  call <SID>DEBUG('===========================',10)
+  call <SID>DEBUG('Completed MBEDeleteBuffer()',10)
+  call <SID>DEBUG('===========================',10)
 
 endfunction
 
@@ -944,8 +1081,89 @@ endfunction
 "
 " Display debug output when debugging is turned on
 "
+"function! <SID>DEBUG(msg, level)
+  "if g:miniBufExplorerDebugLevel >= a:level
+    "call confirm(a:msg, 'OK')
+  "endif
+"endfunction
+
+
+"
+" DEBUG
+"
+" Display debug output when debugging is turned on
+" Thanks to Charles E. Campbell, Jr. PhD <cec@NgrOyphSon.gPsfAc.nMasa.gov> 
+" for Decho.vim which was the inspiration for this enhanced debugging 
+" capability.
+"
 function! <SID>DEBUG(msg, level)
-  if g:miniBufExplorerDebugLevel >= a:level
-    call confirm(a:msg, 'OK')
+
+  if &hidden
+    " Hopefully folks won't get here since we do the startup check, but it 
+    " is possible to load MBE and then turn hidden on afterwards. This check
+    " attempts to make sure that this doesn't happen. 
+    call confirm("MiniBufExplorer does not work properly when the 'hidden' option is turned on, so it is being turned off.", 'OK')
+    set nohidden
   endif
-endfunction
+
+  if g:miniBufExplorerDebugLevel >= a:level
+
+    " Prevent a report of our actions from showing up.
+    let l:save_rep    = &report
+    let l:save_sc     = &showcmd
+    let &report       = 10000
+    set noshowcmd 
+
+    " Debug output to a buffer
+    if g:miniBufExplorerDebugMode == 0
+        " Save the current window number so we can come back here
+        let l:prevWin     = winnr()
+        wincmd p
+        let l:prevPrevWin = winnr()
+        wincmd p
+
+        " Get into the debug window or create it if needed
+        call <SID>FindCreateWindow('MiniBufExplorer.DBG', 1, 0, 0)
+    
+        " Make sure we really got to our window, if not we 
+        " will display a confirm dialog and turn debugging
+        " off so that we won't break things even more.
+        if bufname('%') != 'MiniBufExplorer.DBG'
+            call confirm('Error in window debugging code. Dissabling MiniBufExplorer debugging.', 'OK')
+            let g:miniBufExplorerDebugLevel = 0
+        endif
+
+        " Write Message to DBG buffer
+        let res=append("$",s:debugIndex.':'.a:level.':'.a:msg)
+        norm G
+        "set nomodified
+
+        " Return to original window
+        exec l:prevPrevWin.' wincmd w'
+        exec l:prevWin.' wincmd w'
+    " Debug output using VIM's echo facility
+    elseif g:miniBufExplorerDebugMode == 1
+      echo s:debugIndex.':'.a:level.':'.a:msg
+    " Debug output to a file -- VERY SLOW!!!
+    " should be OK on UNIX and Win32 (not the 95/98 variants)
+    elseif g:miniBufExplorerDebugMode == 2
+        if has('system') || has('fork')
+            if has('win32') && !has('win95')
+                let l:result = system("cmd /c 'echo ".s:debugIndex.':'.a:level.':'.a:msg." >> MiniBufExplorer.DBG'")
+            endif
+            if has('unix')
+                let l:result = system("echo '".s:debugIndex.':'.a:level.':'.a:msg." >> MiniBufExplorer.DBG'")
+            endif
+        else
+            call confirm('Error in file writing version of the debugging code, vim not compiled with system or fork. Dissabling MiniBufExplorer debugging.', 'OK')
+            let g:miniBufExplorerDebugLevel = 0
+        endif
+    endif
+    let s:debugIndex = s:debugIndex + 1
+
+    let &report  = l:save_rep
+    let &showcmd = l:save_sc
+
+  endif
+
+endfunc
