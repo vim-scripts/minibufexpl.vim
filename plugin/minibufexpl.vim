@@ -13,7 +13,7 @@
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
 "  Last Change: Saturday, April 26, 2003
-"      Version: 6.2.6
+"      Version: 6.2.7
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -205,7 +205,6 @@
 " Has this plugin already been loaded?
 "
 if exists('loaded_minibufexplorer')
-  call <SID>DEBUG('MiniBufExplorer already loaded!', 5)
   finish
 endif
 let loaded_minibufexplorer = 1
@@ -1396,7 +1395,11 @@ endfunc
 
 "=============================================================================
 "
-"      History: 6.2.6 o Moved history to end of source file
+"      History: 6.2.7 o Very minor bug fix for people who want to set
+"                       loaded_minibufexplorer in their .vimrc in order to
+"                       stop MBE from loading. 99.99% of users do not need
+"                       this update.
+"               6.2.6 o Moved history to end of source file
 "                     o Updated highlighting documentation
 "                     o Created global commands MBEbn and MBEbp that can be 
 "                       used in mappings if folks want to cycle buffers while 
