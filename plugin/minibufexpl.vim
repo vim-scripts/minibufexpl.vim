@@ -13,7 +13,7 @@
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
 "  Last Change: Saturday, April 26, 2003
-"      Version: 6.2.7
+"      Version: 6.2.8
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -161,6 +161,16 @@
 "
 "               NOTE: If you set a colorscheme in your .vimrc you should do it
 "                     BEFORE updating the MBE highlighting groups.
+"
+"               If you use other explorers like TagList you can (As of 6.2.8) put:
+"
+"                 let g:miniBufExplModSelTarget = 1
+" 
+"               into your .vimrc in order to force MBE to try to place selected 
+"               buffers into a window that does not have a nonmodifiable buffer.
+"               The upshot of this should be that if you go into MBE and select
+"               a buffer, the buffer should not show up in a window that is 
+"               hosting an explorer.
 "
 "               MBE has had a basic debugging capability for quite some time.
 "               However, it has not been very friendly in the past. As of 6.0.8, 
@@ -364,6 +374,13 @@ endif
 " we turn off CTabSwitchWindows.
 if g:miniBufExplMapCTabSwitchBufs == 1 || !exists('g:miniBufExplMapCTabSwitchWindows')
   let g:miniBufExplMapCTabSwitchWindows = 0
+endif
+
+"
+" Modifiable Select Target
+"
+if !exists('g:miniBufExplModSelTarget')
+  let g:miniBufExplModSelTarget = 0
 endif
 
 " Global used to store the buffer list so we don't update the
@@ -1122,14 +1139,21 @@ function! <SID>MBESelectBuffer()
     " Switch to the previous window
     wincmd p
 
-    " If we are in the buffer explorer then try another window
-    if bufname('%') == '-MiniBufExplorer-'
+    " If we are in the buffer explorer or in a nonmodifiable buffer with
+    " g:miniBufExplModSelTarget set then try another window (a few times)
+    if bufname('%') == '-MiniBufExplorer-' || (g:miniBufExplModSelTarget == 1 && getbufvar(bufnr('%'), '&modifiable') == 0)
       wincmd w
-      " The following handles the case where -MiniBufExplorer-
-      " is the only window left. We need to resize so we don't
-      " end up with a 1 or two line buffer.
-      if bufname('%') == '-MiniBufExplorer-'
-        let l:resize = 1
+      if bufname('%') == '-MiniBufExplorer-' || (g:miniBufExplModSelTarget == 1 && getbufvar(bufnr('%'), '&modifiable') == 0)
+        wincmd w
+        if bufname('%') == '-MiniBufExplorer-' || (g:miniBufExplModSelTarget == 1 && getbufvar(bufnr('%'), '&modifiable') == 0)
+          wincmd w
+          " The following handles the case where -MiniBufExplorer-
+          " is the only window left. We need to resize so we don't
+          " end up with a 1 or two line buffer.
+          if bufname('%') == '-MiniBufExplorer-'
+            let l:resize = 1
+          endif
+        endif
       endif
     endif
 
@@ -1395,7 +1419,10 @@ endfunc
 
 "=============================================================================
 "
-"      History: 6.2.7 o Very minor bug fix for people who want to set
+"      History: 6.2.8 o Add an option to stop MBE from targeting non-modifiable
+"                       buffers when switching buffers. Thanks to AW Law for
+"                       the inspiration for this.
+"               6.2.7 o Very minor bug fix for people who want to set
 "                       loaded_minibufexplorer in their .vimrc in order to
 "                       stop MBE from loading. 99.99% of users do not need
 "                       this update.
