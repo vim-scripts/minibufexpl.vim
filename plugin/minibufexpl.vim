@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Tuesday, December 4, 2001
-"      Version: 6.0.2
+"  Last Change: Tuesday, December 18, 2001
+"      Version: 6.0.3
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -28,7 +28,7 @@
 "                 <Leader>mbe - Opens MiniBufExplorer
 "
 "               or you may want to add something like the following
-"               two key mappings to your _vimrc/.vimrc file.
+"               key mapping to your _vimrc/.vimrc file.
 "
 "                 map <Leader>b :MiniBufExplorer<cr>
 "
@@ -44,20 +44,22 @@
 "
 "               The default for this is read from the &splitbellow vim option.
 "
+"               By default we are now (as of 6.0.2) forcing the -MiniBufExplorer-
+"               window to open up at the edge of the screen. You can turn this 
+"               off by setting the following variable:
+"
 "               By default we are now (as of 6.0.1) turning on the MoreThanOne
-"               option. This stops the [MiniBufExplorer] from opening 
+"               option. This stops the -MiniBufExplorer- from opening 
 "               automatically until more than one eligible buffer is available.
 "               You can turn this feature off by setting the following variable:
 "                 
 "                 let g:miniBufExplorerMoreThanOne=0
 "
-"               By default we are now (as of 6.0.2) forcing the [MiniBufExplorer]
-"               window to open up at the edge of the screen. You can turn this 
-"               off by setting the following variable:
-"
 "                 let g:miniBufExplSplitToEdge=0
 "
-"      History: 6.0.2 2 Changes requested by Suresh Govindachar
+"      History: 6.0.3 Changed buffer name to -MiniBufExplorer- to resolve
+"                     Issue in filename pattern matching on Windows.
+"               6.0.2 2 Changes requested by Suresh Govindachar
 "                     Added SplitToEdge option and set it on by default
 "                     Added tab and shift-tab mappings in [MBE] window
 "               6.0.1 Added MoreThanOne option and set it on by default
@@ -120,7 +122,7 @@ if !exists('g:miniBufExplorerMoreThanOne')
 endif
 
 "
-" When opening a new [MiniBufExplorer] window, split the new windows below or 
+" When opening a new -MiniBufExplorer- window, split the new windows below or 
 " above the current window?  1 = below, 0 = above.
 "
 if !exists('g:miniBufExplSplitBelow')
@@ -128,7 +130,7 @@ if !exists('g:miniBufExplSplitBelow')
 endif
 
 "
-" When opening a new [MiniBufExplorer] window, split the new windows to the
+" When opening a new -MiniBufExplorer- window, split the new windows to the
 " full edge? 1 = yes, 0 = no.
 "
 if !exists('g:miniBufExplSplitToEdge')
@@ -156,7 +158,7 @@ function! <SID>StartExplorer()
   call <SID>FindCreateExplorer()
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('DisplayBuffers called in invalid window',1)
     return
   endif
@@ -187,13 +189,13 @@ function! <SID>StartExplorer()
     endif
   endif
 
-  " If you press return in the [MiniBufExplorer] then try
+  " If you press return in the -MiniBufExplorer- then try
   " to open the selected buffer in the previous window.
   nnoremap <buffer> <cr> :call <SID>SelectBuffer()<cr>
-  " If you DoubleClick in the [MiniBufExplorer] then try
+  " If you DoubleClick in the -MiniBufExplorer- then try
   " to open the selected buffer in the previous window.
   nnoremap <buffer> <2-leftmouse> :call <SID>DoubleClick()<cr>
-  " If you press d in the [MiniBufExplorer] then try to
+  " If you press d in the -MiniBufExplorer- then try to
   " delete the selected buffer.
   nnoremap <buffer> d :call <SID>DeleteBuffer()<cr>
   " The following allow us to use regular movement keys to 
@@ -230,11 +232,11 @@ function! <SID>FindCreateExplorer()
   let &splitbelow = g:miniBufExplSplitBelow
 
   " Try to find an existing window that contains 
-  " [MiniBufExplorer]. If found goto the existing 
+  " -MiniBufExplorer-. If found goto the existing 
   " window, otherwise split open a new window.
   let l:bufNum = bufnr('MiniBufExplorer')
   if l:bufNum != -1
-    call <SID>DEBUG('[MiniBufExplorer] found in buffer: '.l:bufNum,9)
+    call <SID>DEBUG('-MiniBufExplorer- found in buffer: '.l:bufNum,9)
     let l:winNum = bufwinnr(l:bufNum)
   else
     let l:winNum = -1
@@ -247,16 +249,16 @@ function! <SID>FindCreateExplorer()
 
     if g:miniBufExplSplitToEdge == 1
         if &splitbelow
-            bo sp [MiniBufExplorer]
+            bo sp -MiniBufExplorer-
         else
-            to sp [MiniBufExplorer]
+            to sp -MiniBufExplorer-
         endif
     else
-        sp [MiniBufExplorer]
+        sp -MiniBufExplorer-
     endif
 
     " Make sure we are in our window
-    if bufname('%') != '[MiniBufExplorer]'
+    if bufname('%') != '-MiniBufExplorer-'
       call <SID>DEBUG('DisplayBuffers called in invalid window',1)
       return
     endif
@@ -286,7 +288,7 @@ function! <SID>DisplayBuffers()
   call <SID>DEBUG('Entering DisplayBuffers()',10)
   
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('DisplayBuffers called in invalid window',1)
     return
   endif
@@ -317,7 +319,7 @@ function! <SID>ResizeWindow()
   call <SID>DEBUG('Entering ResizeWindow()',10)
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('DisplayBuffers called in invalid window',1)
     return
   endif
@@ -344,7 +346,7 @@ function! <SID>ShowBuffers()
   call <SID>DEBUG('Entering ShowBuffers()',10)
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('ShowBuffers called in invalid window',1)
     return
   endif
@@ -374,7 +376,7 @@ function! <SID>ShowBuffers()
         " want to show Explorers)
         if (getbufvar(l:i, '&modifiable') == 1 && 
            \getbufvar(l:i, '&hidden') == 0 &&
-           \BufName != '[MiniBufExplorer]')
+           \BufName != '-MiniBufExplorer-')
           
           " Get filename & Remove []'s & ()'s
           let l:shortBufName = fnamemodify(l:BufName, ":t")                  
@@ -449,7 +451,7 @@ function! <SID>HasEligibleBuffer()
         " want to show Explorers)
         if ((getbufvar(l:i, '&modifiable') == 1) && 
            \getbufvar(l:i, '&hidden') == 0 &&
-           \(BufName != '[MiniBufExplorer]'))
+           \(BufName != '-MiniBufExplorer-'))
           
             let l:found = l:found + 1
             call <SID>DEBUG('Found '.l:found.' eligible buffers so far.',6)
@@ -481,15 +483,15 @@ function! <SID>AutoUpdate()
   " Only allow updates when the AutoUpdate flag is set
   " this allows us to stop updates on startup.
   if g:miniBufExplorerAutoUpdate == 1
-    " Only show BufExplorer if we have a real buffer
+    " Only show MiniBufExplorer if we have a real buffer
     if bufnr('%') != -1 && bufname('%') != ""
       " only update if we are not in our window
-      if bufname('%') != '[MiniBufExplorer]'
+      if bufname('%') != '-MiniBufExplorer-'
         if <SID>HasEligibleBuffer()
           call <SID>StartExplorer()
-          " if we are not already in the [MiniBufExplorer] window
+          " if we are not already in the -MiniBufExplorer- window
           " then goto the previous window (back to working buffer)
-          if bufname('#') != '[MiniBufExplorer]'
+          if bufname('#') != '-MiniBufExplorer-'
             wincmd p
           endif
         endif
@@ -508,7 +510,7 @@ function! <SID>GetSelectedBuffer()
   call <SID>DEBUG('Entering GetSelectedBuffer()',10)
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('GetSelectedBuffer called in invalid window',1)
     return -1
   endif
@@ -533,7 +535,7 @@ function! <SID>SelectBuffer()
   call <SID>DEBUG('Entering SelectBuffer()',10)
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('SelectBuffer called in invalid window',1)
     return 
   endif
@@ -547,7 +549,7 @@ function! <SID>SelectBuffer()
     " Switch to the previous window
     wincmd p
     " If we are in the buffer explorer then try another window
-    if bufname('%') == '[MiniBufExplorer]'
+    if bufname('%') == '-MiniBufExplorer-'
       wincmd w
     endif
     " And load the selected buffer
@@ -574,7 +576,7 @@ function! <SID>DeleteBuffer()
   call <SID>DEBUG('Entering DeleteBuffer()',10)
 
   " Make sure we are in our window
-  if bufname('%') != '[MiniBufExplorer]'
+  if bufname('%') != '-MiniBufExplorer-'
     call <SID>DEBUG('DeleteBuffer called in invalid window',1)
     return 
   endif
@@ -640,13 +642,13 @@ function! <SID>DeleteBuffer()
     call <SID>DEBUG('Restoring previous window to: '.l:prevWin,5)
     exec l:prevWin.' wincmd w'
 
-    " Try to get back to the [BufExplorer] window 
-    let l:winNum = bufwinnr(bufnr('BufExplorer'))
+    " Try to get back to the -MiniBufExplorer- window 
+    let l:winNum = bufwinnr(bufnr('-MiniBufExplorer-'))
     if l:winNum != -1
         exec l:winNum.' wincmd w'
-        call <SID>DEBUG('Got to [BufExplorer] window: '.winnr(),5)
+        call <SID>DEBUG('Got to -MiniBufExplorer- window: '.winnr(),5)
     else
-        call <SID>DEBUG('Unable to get to [BufExplorer] window',1)
+        call <SID>DEBUG('Unable to get to -MiniBufExplorer- window',1)
     endif
   
     " Delete the buffer selected.
@@ -656,10 +658,10 @@ function! <SID>DeleteBuffer()
     setlocal modifiable
 
     " Update the buffer list
-    if bufname('%') == '[MiniBufExplorer]'
+    if bufname('%') == '-MiniBufExplorer-'
       call <SID>DisplayBuffers()
     else
-      call <SID>DEBUG('Unable to update [BufExplorer] window',1)
+      call <SID>DEBUG('Unable to update -MiniBufExplorer- window',1)
     endif
 
   endif
