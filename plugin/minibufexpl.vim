@@ -1,3 +1,8 @@
+" Mini Buffer Explorer <minibufexpl.vim>
+"
+" HINT: Type zR if you don't know how to use folds
+"
+" Script Info and Documentation  {{{
 "=============================================================================
 "    Copyright: Copyright (C) 2002 & 2003 Bindu Wavell 
 "               Permission is hereby granted to use and distribute this code,
@@ -13,7 +18,7 @@
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
 "  Last Change: Sunday, June 21, 2004
-"      Version: 6.3.0
+"      Version: 6.3.1
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -218,6 +223,12 @@
 "               a buffer, the buffer should not show up in a window that is 
 "               hosting an explorer.
 "
+"               There is a VIM bug that can cause buffers to show up without 
+"               their highlighting. The following setting will cause MBE to
+"               try and turn highlighting back on (introduced in 6.3.1):
+"
+"                 let g:miniBufExplForceSyntaxEnable = 1
+"
 "               MBE has had a basic debugging capability for quite some time.
 "               However, it has not been very friendly in the past. As of 6.0.8, 
 "               you can put one of each of the following into your .vimrc:
@@ -256,19 +267,22 @@
 "               you don't want to control from MBE
 "
 "=============================================================================
+" }}}
 
+" Startup Check
 "
-" Has this plugin already been loaded?
+" Has this plugin already been loaded? {{{
 "
 if exists('loaded_minibufexplorer')
   finish
 endif
 let loaded_minibufexplorer = 1
-let s:debugIndex = 0
+" }}}
 
-" 
-" If we don't already have keyboard
-" mappings for mbe then create them.
+" Mappings and Commands
+"
+" MBE Keyboard Mappings {{{
+" If we don't already have keyboard mappings for MBE then create them 
 " 
 if !hasmapto('<Plug>MiniBufExplorer')
   map <unique> <Leader>mbe <Plug>MiniBufExplorer
@@ -283,16 +297,16 @@ if !hasmapto('<Plug>TMiniBufExplorer')
   map <unique> <Leader>mbt <Plug>TMiniBufExplorer
 endif
 
-" 
-" Setup <Script> internal map.
+" }}}
+" MBE <Script> internal map {{{
 " 
 noremap <unique> <script> <Plug>MiniBufExplorer  :call <SID>StartExplorer(1, -1)<CR>:<BS>
 noremap <unique> <script> <Plug>CMiniBufExplorer :call <SID>StopExplorer(1)<CR>:<BS>
 noremap <unique> <script> <Plug>UMiniBufExplorer :call <SID>AutoUpdate(-1)<CR>:<BS>
 noremap <unique> <script> <Plug>TMiniBufExplorer :call <SID>ToggleExplorer()<CR>:<BS>
 
-" 
-" Create MBE commands command.
+" }}}
+" MBE commands {{{
 " 
 if !exists(':MiniBufExplorer')
   command! MiniBufExplorer  call <SID>StartExplorer(1, -1)
@@ -311,10 +325,11 @@ if !exists(':MBEbn')
 endif
 if !exists(':MBEbp')
   command! MBEbp call <SID>CycleBuffer(0)
-endif
+endif " }}}
 
+" Global Configuration Variables
 "
-" Debug Level
+" Debug Level {{{
 "
 " 0 = no logging
 " 1=5 = errors ; 1 is the most important
@@ -324,8 +339,8 @@ if !exists('g:miniBufExplorerDebugLevel')
   let g:miniBufExplorerDebugLevel = 0 
 endif
 
-"
-" Debug Mode
+" }}}
+" Debug Mode {{{
 "
 " 0 = debug to a window
 " 1 = use vim's echo facility
@@ -336,10 +351,10 @@ endif
 "     global variable [This is the default]
 if !exists('g:miniBufExplorerDebugMode')
   let g:miniBufExplorerDebugMode = 3 
-endif
+endif 
 
-"
-" Allow auto update?
+" }}}
+" Allow auto update? {{{
 "
 " We start out with this off for startup, but once vim is running we 
 " turn this on.
@@ -347,38 +362,44 @@ if !exists('g:miniBufExplorerAutoUpdate')
   let g:miniBufExplorerAutoUpdate = 0
 endif
 
-"
-" Display Mini Buf Explorer when there are 'More Than One' eligible buffers
+" }}}
+" MoreThanOne? {{{
+" Display Mini Buf Explorer when there are 'More Than One' eligible buffers 
 "
 if !exists('g:miniBufExplorerMoreThanOne')
   let g:miniBufExplorerMoreThanOne = 2
-endif
+endif 
 
-"
+" }}}
+" Split below/above/left/right? {{{
 " When opening a new -MiniBufExplorer- window, split the new windows below or 
 " above the current window?  1 = below, 0 = above.
 "
 if !exists('g:miniBufExplSplitBelow')
   let g:miniBufExplSplitBelow = &splitbelow
-endif
+endif 
 
-"
+" }}}
+" Split to edge? {{{
 " When opening a new -MiniBufExplorer- window, split the new windows to the
 " full edge? 1 = yes, 0 = no.
 "
 if !exists('g:miniBufExplSplitToEdge')
   let g:miniBufExplSplitToEdge = 1
-endif
+endif 
 
-"
+" }}}
+" MaxHeight (depreciated) {{{
 " When sizing the -MiniBufExplorer- window, assign a maximum window height.
 " 0 = size to fit all buffers, otherwise the value is number of lines for
 " buffer. [Depreciated use g:miniBufExplMaxSize]
 "
 if !exists('g:miniBufExplMaxHeight')
   let g:miniBufExplMaxHeight = 0
-endif
+endif 
 
+" }}}
+" MaxSize {{{
 " Same as MaxHeight but also works for vertical splits if specified with a
 " vertical split then vertical resizing will be performed. If left at 0 
 " then the number of columns in g:miniBufExplVSplit will be used as a
@@ -387,7 +408,8 @@ if !exists('g:miniBufExplMaxSize')
   let g:miniBufExplMaxSize = g:miniBufExplMaxHeight
 endif
 
-"
+" }}}
+" MinHeight (depreciated) {{{
 " When sizing the -MiniBufExplorer- window, assign a minumum window height.
 " the value is minimum number of lines for buffer. Setting this to zero can
 " cause strange height behavior. The default value is 1 [Depreciated use
@@ -397,13 +419,16 @@ if !exists('g:miniBufExplMinHeight')
   let g:miniBufExplMinHeight = 1
 endif
 
+" }}}
+" MinSize {{{
 " Same as MinHeight but also works for vertical splits. For vertical splits, 
 " this is ignored unless g:miniBufExplMax(Size|Height) are specified.
 if !exists('g:miniBufExplMinSize')
   let g:miniBufExplMinSize = g:miniBufExplMinHeight
 endif
 
-"
+" }}}
+" Horizontal or Vertical explorer? {{{
 " For folks that like vertical explorers, I'm caving in and providing for
 " veritcal splits. If this is set to 0 then the current horizontal 
 " splitting logic will be run. If however you want a vertical split,
@@ -413,7 +438,8 @@ if !exists('g:miniBufExplVSplit')
   let g:miniBufExplVSplit = 0
 endif
 
-"
+" }}}
+" TabWrap? {{{
 " By default line wrap is used (possibly breaking a tab name between two
 " lines.) Turning this option on (setting it to 1) can take more screen
 " space, but will make sure that each tab is on one and only one line.
@@ -422,7 +448,8 @@ if !exists('g:miniBufExplTabWrap')
   let g:miniBufExplTabWrap = 0
 endif
 
-"
+" }}}
+" Extended window navigation commands? {{{
 " Global flag to turn extended window navigation commands on or off
 " enabled = 1, dissabled = 0
 "
@@ -445,71 +472,8 @@ endif
 " we turn off CTabSwitchWindows.
 if g:miniBufExplMapCTabSwitchBufs == 1 || !exists('g:miniBufExplMapCTabSwitchWindows')
   let g:miniBufExplMapCTabSwitchWindows = 0
-endif
+endif 
 
-"
-" Modifiable Select Target
-"
-if !exists('g:miniBufExplModSelTarget')
-  let g:miniBufExplModSelTarget = 0
-endif
-
-" Global used to store the buffer list so we don't update the
-" UI unless the list has changed.
-if !exists('g:miniBufExplBufList')
-  let g:miniBufExplBufList = ''
-endif
-
-" Variable used as a mutex so that we don't do lots
-" of AutoUpdates at the same time.
-if !exists('g:miniBufExplInAutoUpdate')
-  let g:miniBufExplInAutoUpdate = 0
-endif
-
-" In debug mode 3 this variable will hold the debug output
-if !exists('g:miniBufExplorerDebugOutput')
-  let g:miniBufExplorerDebugOutput = ''
-endif
-
-" In debug mode 3 this variable will hold the debug output
-if !exists('g:miniBufExplForceDisplay')
-  let g:miniBufExplForceDisplay = 0
-endif
-
-" Variable used to pass maxTabWidth info between functions
-let s:maxTabWidth = 0
-
-
-"
-" flag that can be set to 1 in a users .vimrc to allow 
-" single click switching of tabs. By default we use
-" double click for tab selection.
-"
-if !exists('g:miniBufExplUseSingleClick')
-  let g:miniBufExplUseSingleClick = 0
-endif
-
-"
-" attempt to perform single click mapping, it would be much
-" nicer if we could nnoremap <buffer> ... however vim does
-" not fire the <buffer> <leftmouse> when you use the mouse
-" to enter a buffer.
-"
-if g:miniBufExplUseSingleClick == 1
-  let s:clickmap = ':if bufname("%") == "-MiniBufExplorer-" <bar> call <SID>MBEClick() <bar> endif <CR>'
-  if maparg('<LEFTMOUSE>', 'n') == '' 
-    " no mapping for leftmouse
-    exec ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>' . s:clickmap
-  else
-    " we have a mapping
-    let  g:miniBufExplDoneClickSave = 1
-    let  s:m = ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>'
-    let  s:m = s:m . substitute(substitute(maparg('<LEFTMOUSE>', 'n'), '|', '<bar>', 'g'), '\c^<LEFTMOUSE>', '', '')
-    let  s:m = s:m . s:clickmap
-    exec s:m
-  endif
-endif
-  
 "
 " If we have enabled control + vim direction key remapping
 " then perform the remapping
@@ -552,21 +516,96 @@ if g:miniBufExplMapCTabSwitchWindows
   noremap <C-S-TAB> <C-W>W
 endif
 
+" }}}
+" Modifiable Select Target {{{
+"
+if !exists('g:miniBufExplModSelTarget')
+  let g:miniBufExplModSelTarget = 0
+endif
 
+"}}}
+" Force Syntax Enable {{{
+"
+if !exists('g:miniBufExplForceSyntaxEnable')
+  let g:miniBufExplForceSyntaxEnable = 0
+endif
+
+" }}}
+" Single/Double Click? {{{
+" flag that can be set to 1 in a users .vimrc to allow 
+" single click switching of tabs. By default we use
+" double click for tab selection.
+"
+if !exists('g:miniBufExplUseSingleClick')
+  let g:miniBufExplUseSingleClick = 0
+endif 
 
 "
-" Setup an autocommand group and some autocommands that keep our explorer
-" updated automatically.
+" attempt to perform single click mapping, it would be much
+" nicer if we could nnoremap <buffer> ... however vim does
+" not fire the <buffer> <leftmouse> when you use the mouse
+" to enter a buffer.
+"
+if g:miniBufExplUseSingleClick == 1
+  let s:clickmap = ':if bufname("%") == "-MiniBufExplorer-" <bar> call <SID>MBEClick() <bar> endif <CR>'
+  if maparg('<LEFTMOUSE>', 'n') == '' 
+    " no mapping for leftmouse
+    exec ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>' . s:clickmap
+  else
+    " we have a mapping
+    let  g:miniBufExplDoneClickSave = 1
+    let  s:m = ':nnoremap <silent> <LEFTMOUSE> <LEFTMOUSE>'
+    let  s:m = s:m . substitute(substitute(maparg('<LEFTMOUSE>', 'n'), '|', '<bar>', 'g'), '\c^<LEFTMOUSE>', '', '')
+    let  s:m = s:m . s:clickmap
+    exec s:m
+  endif
+endif " }}}
+
+" Variables used internally
+"
+" Script/Global variables {{{
+" Global used to store the buffer list so we don't update the
+" UI unless the list has changed.
+if !exists('g:miniBufExplBufList')
+  let g:miniBufExplBufList = ''
+endif
+
+" Variable used as a mutex so that we don't do lots
+" of AutoUpdates at the same time.
+if !exists('g:miniBufExplInAutoUpdate')
+  let g:miniBufExplInAutoUpdate = 0
+endif
+
+" In debug mode 3 this variable will hold the debug output
+if !exists('g:miniBufExplorerDebugOutput')
+  let g:miniBufExplorerDebugOutput = ''
+endif
+
+" In debug mode 3 this variable will hold the debug output
+if !exists('g:miniBufExplForceDisplay')
+  let g:miniBufExplForceDisplay = 0
+endif
+
+" Variable used to pass maxTabWidth info between functions
+let s:maxTabWidth = 0 
+
+" Variable used to count debug output lines
+let s:debugIndex = 0 
+
+  
+" }}}
+" Setup an autocommand group and some autocommands {{{
+" that keep our explorer updated automatically.
 "
 augroup MiniBufExplorer
 autocmd MiniBufExplorer BufDelete   * call <SID>DEBUG('-=> BufDelete AutoCmd', 10) |call <SID>AutoUpdate(expand('<abuf>'))
 autocmd MiniBufExplorer BufEnter    * call <SID>DEBUG('-=> BufEnter  AutoCmd', 10) |call <SID>AutoUpdate(-1)
 autocmd MiniBufExplorer VimEnter    * call <SID>DEBUG('-=> VimEnter  AutoCmd', 10) |let g:miniBufExplorerAutoUpdate = 1 |call <SID>AutoUpdate(-1)
+" }}}
 
-" 
-" StartExplorer
-" 
-" Sets up our explorer and causes it to be displayed
+" Functions
+"
+" StartExplorer - Sets up our explorer and causes it to be displayed {{{
 "
 function! <SID>StartExplorer(sticky, delBufNum)
   call <SID>DEBUG('===========================',10)
@@ -663,12 +702,10 @@ function! <SID>StartExplorer(sticky, delBufNum)
   call <SID>DEBUG('Completed StartExplorer()'  ,10)
   call <SID>DEBUG('===========================',10)
 
-endfunction
+endfunction 
 
-"
-" StopExplorer
-"
-" Looks for our explorer and closes the window if it is open
+" }}}
+" StopExplorer - Looks for our explorer and closes the window if it is open {{{
 "
 function! <SID>StopExplorer(sticky)
   call <SID>DEBUG('===========================',10)
@@ -693,11 +730,8 @@ function! <SID>StopExplorer(sticky)
 
 endfunction
 
-"
-" ToggleExplorer
-"
-" Looks for our explorer and closes the window if it is open
-" or opens it if it's closed.
+" }}}
+" ToggleExplorer - Looks for our explorer and opens/closes the window {{{
 "
 function! <SID>ToggleExplorer()
   call <SID>DEBUG('===========================',10)
@@ -721,11 +755,9 @@ function! <SID>ToggleExplorer()
 
 endfunction
 
-"
-" FindWindow
-"
-" Return the window number of a named buffer, if none is found then 
-" returns -1.
+" }}}
+" FindWindow - Return the window number of a named buffer {{{
+" If none is found then returns -1. 
 "
 function! <SID>FindWindow(bufName, doDebug)
   if a:doDebug
@@ -748,12 +780,11 @@ function! <SID>FindWindow(bufName, doDebug)
 
 endfunction
 
-" 
-" FindCreateWindow
-" 
-" Attempts to find a window for a named buffer. If it is found then 
-" moves there. Otherwise creates a new window and configures it and
-" moves there.
+" }}}
+" FindCreateWindow - Attempts to find a window for a named buffer. {{{
+"
+" If it is found then moves there. Otherwise creates a new window and 
+" configures it and moves there.
 "
 " forceEdge, -1 use defaults, 0 below, 1 above
 " isExplorer, 0 no, 1 yes 
@@ -858,9 +889,9 @@ function! <SID>FindCreateWindow(bufName, forceEdge, isExplorer, doDebug)
 
 endfunction
 
-" 
-" DisplayBuffers.
-" 
+" }}}
+" DisplayBuffers - Wrapper for getting MBE window shown {{{
+"
 " Makes sure we are in our explorer, then erases the current buffer and turns 
 " it into a mini buffer explorer window.
 "
@@ -887,10 +918,10 @@ function! <SID>DisplayBuffers(delBufNum)
 
 endfunction
 
+" }}}
+" Resize Window - Set width/height of MBE window {{{
 " 
-" Resize Window
-" 
-" Makes sure we are in our explorer, then sets the height for our explorer 
+" Makes sure we are in our explorer, then sets the height/width for our explorer 
 " window so that we can fit all of our information without taking extra lines.
 "
 function! <SID>ResizeWindow()
@@ -968,8 +999,8 @@ function! <SID>ResizeWindow()
   
 endfunction
 
-" 
-" ShowBuffers.
+" }}}
+" ShowBuffers - Clear current buffer and put the MBE text into it {{{
 " 
 " Makes sure we are in our explorer, then adds a list of all modifiable 
 " buffers to the current buffer. Special marks are added for buffers that 
@@ -1005,10 +1036,8 @@ function! <SID>ShowBuffers(delBufNum)
   
 endfunction
 
-"
-" Max
-" 
-" Returns the max of two numbers
+" }}}
+" Max - Returns the max of two numbers {{{
 "
 function! <SID>Max(argOne, argTwo)
   if a:argOne > a:argTwo
@@ -1018,8 +1047,8 @@ function! <SID>Max(argOne, argTwo)
   endif
 endfunction
 
-" 
-" BuildBufferList.
+" }}}
+" BuildBufferList - Build the text for the MBE window {{{
 " 
 " Creates the buffer list string and returns 1 if it is different than
 " last time this was called and 0 otherwise.
@@ -1097,8 +1126,8 @@ function! <SID>BuildBufferList(delBufNum, updateBufList)
 
 endfunction
 
-" 
-" HasEligibleBuffers
+" }}}
+" HasEligibleBuffers - Are there enough MBE eligible buffers to open the MBE window? {{{
 " 
 " Returns 1 if there are any buffers that can be displayed in a 
 " mini buffer explorer. Otherwise returns 0. If delBufNum is
@@ -1158,8 +1187,8 @@ function! <SID>HasEligibleBuffers(delBufNum)
   
 endfunction
 
-"
-" Auto Update
+" }}}
+" Auto Update - Function called by auto commands for auto updating the MBE {{{
 "
 " IF auto update is turned on        AND
 "    we are in a real buffer         AND
@@ -1240,6 +1269,16 @@ function! <SID>AutoUpdate(delBufNum)
         call <SID>DEBUG('Failed in eligible check', 9)
         call <SID>StopExplorer(0)
       endif
+
+	  " VIM sometimes turns syntax highlighting off,
+	  " we can force it on, but this may cause weird
+	  " behavior so this is an optional hack to force
+	  " syntax back on when we enter a buffer
+	  if g:miniBufExplForceSyntaxEnable
+		call <SID>DEBUG('Enable Syntax', 9)
+		exec 'syntax enable'
+	  endif
+
     else
       call <SID>DEBUG('No buffers loaded...',9)
     endif
@@ -1255,8 +1294,8 @@ function! <SID>AutoUpdate(delBufNum)
 
 endfunction
 
-" 
-" GetSelectedBuffer
+" }}}
+" GetSelectedBuffer - From the MBE window, return the bufnum for buf under cursor {{{
 " 
 " If we are in our explorer window then return the buffer number
 " for the buffer under the cursor.
@@ -1284,8 +1323,8 @@ function! <SID>GetSelectedBuffer()
 
 endfunction
 
-" 
-" MBESelectBuffer.
+" }}}
+" MBESelectBuffer - From the MBE window, open buffer under the cursor {{{
 " 
 " If we are in our explorer, then we attempt to open the buffer under the
 " cursor in the previous window.
@@ -1352,8 +1391,8 @@ function! <SID>MBESelectBuffer()
 
 endfunction
 
-" 
-" Delete selected buffer from list.
+" }}}
+" MBEDeleteBuffer - From the MBE window, delete selected buffer from list {{{
 " 
 " After making sure that we are in our explorer, This will delete the buffer 
 " under the cursor. If the buffer under the cursor is being displayed in a
@@ -1464,8 +1503,24 @@ function! <SID>MBEDeleteBuffer()
 
 endfunction
 
+" }}}
+" MBEClick - Handle mouse double click {{{
 "
-" Cycle Through Buffers 
+function! s:MBEClick()
+  call <SID>DEBUG('Entering MBEClick()',10)
+  call <SID>MBESelectBuffer()
+endfunction
+
+"
+" MBEDoubleClick - Double click with the mouse.
+"
+function! s:MBEDoubleClick()
+  call <SID>DEBUG('Entering MBEDoubleClick()',10)
+  call <SID>MBESelectBuffer()
+endfunction
+
+" }}}
+" CycleBuffer - Cycle Through Buffers {{{
 "
 " Move to next or previous buffer in the current window. If there 
 " are no more modifiable buffers then stay on the current buffer.
@@ -1511,26 +1566,8 @@ function! <SID>CycleBuffer(forward)
 
 endfunction
 
-"
-" MBEClick - Double click with the mouse.
-"
-function! s:MBEClick()
-  call <SID>DEBUG('Entering MBEClick()',10)
-  call <SID>MBESelectBuffer()
-endfunction
-
-"
-" MBEDoubleClick - Double click with the mouse.
-"
-function! s:MBEDoubleClick()
-  call <SID>DEBUG('Entering MBEDoubleClick()',10)
-  call <SID>MBESelectBuffer()
-endfunction
-
-"
-" DEBUG
-"
-" Display debug output when debugging is turned on
+" }}}
+" DEBUG - Display debug output when debugging is turned on {{{
 "
 " Thanks to Charles E. Campbell, Jr. PhD <cec@NgrOyphSon.gPsfAc.nMasa.gov> 
 " for Decho.vim which was the inspiration for this enhanced debugging 
@@ -1600,11 +1637,19 @@ function! <SID>DEBUG(msg, level)
 
   endif
 
-endfunc
+endfunc " }}}
 
+" MBE Script History {{{
 "=============================================================================
 "
-"      History: 6.3.0 o Added an option to allow single click (rather than
+"      History: 6.3.1 o Include folds in source so that it's easier to 
+"                       navigate.
+"                     o Added g:miniBufExplForceSyntaxEnable setting for folks
+"                       that want a :syntax enable to be called when we enter 
+"                       buffers. This can resolve issues caused by a vim bug
+"                       where buffers show up without highlighting when another 
+"                       buffer has been closed, quit, wiped or deleted.
+"               6.3.0 o Added an option to allow single click (rather than
 "                       the default double click) to select buffers in the
 "                       MBE window. This feature was requested by AW Law
 "                       and was inspired by taglist.vim. Note that you will 
@@ -1786,4 +1831,5 @@ endfunc
 "               6.0.0 o Initial Release on November 20, 2001
 "
 "=============================================================================
-" vim:ft=vim:
+" }}}
+" vim:ft=vim:fdm=marker:ff=unix:nowrap:tabstop=4:shiftwidth=4:softtabstop=4:smarttab:shiftround:expandtab
