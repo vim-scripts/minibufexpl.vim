@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Saturday, March 22, 2003
-"      Version: 6.2.1
+"  Last Change: Monday, March 24, 2003
+"      Version: 6.2.2
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -55,12 +55,18 @@
 "
 "               It is now (as of 6.1.1) possible to set a maximum height for
 "               the -MiniBufExplorer- window. You can set the max height by
-"               setting the following variable in your .vimrc:
+"               letting the following variable in your .vimrc:
 "
-"                 let g:miniBufExplMaxHeight = <max lines>
+"                 let g:miniBufExplMaxHeight = <max lines: defualt 0>
 "
 "               setting this to 0 will mean the window gets as big as
 "               needed to fit all your buffers.
+"
+"               As of 6.2.2 it is possible to set a minimum height for the 
+"               -MiniBufExplorer- window. You can set the min height by
+"               letting the following variable in your .vimrc:
+"
+"                 let g:miniBufExplMinHeight = <min height: default 1>
 "
 "               By default we are now (as of 6.0.1) turning on the MoreThanOne
 "               option. This stops the -MiniBufExplorer- from opening 
@@ -68,7 +74,17 @@
 "               You can turn this feature off by setting the following variable
 "               in your .vimrc:
 "                 
-"                 let g:miniBufExplorerMoreThanOne=0
+"                 let g:miniBufExplorerMoreThanOne=1
+"
+"               (The following enhancement is as of 6.2.2)
+"               Setting this to 0 will cause the MBE window to be loaded even
+"               if no buffers are available. Setting it to 1 causes the MBE
+"               window to be loaded as soon as an eligible buffer is read. You
+"               can also set it to larger numbers. So if you set it to 4 for
+"               example the MBE window wouldn't auto-open until 4 eligibles
+"               buffers had been loaded. This is nice for folks that don't 
+"               want an MBE window unless they are editing more than 2 or
+"               three buffers.
 "
 "               To enable the optional mapping of Control + Vim Direction Keys 
 "               [hjkl] to window movement commands, you can put the following into 
@@ -129,7 +145,27 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.2.1 o If MBE is the only window (because of :bd for example)
+"      History: 6.2.2 o Changed the way the g:miniBufExplorerMoreThanOne
+"                       global is handled. You can set this to the number
+"                       of eligible buffers you want to be loaded before
+"                       the MBE window is loaded. Setting it to 0 causes
+"                       the MBE window to be opened even if there are no
+"                       buffers. Setting it to 4 causes the window to stay
+"                       closed until the 4th eligible buffer is loaded.
+"                     o Added a MinHeight option. This is nice if you want
+"                       the MBE window to always take the same amount of
+"                       space. For example set MaxHeight and MinHeight to 2
+"                       and set MoreThanOne to 0 and you will always have
+"                       a 2 row (plus the ruler :) MBE window.
+"                     o I now setlocal foldcomun=0 and nonumber in the MBE 
+"                       window. This is for those of you that like to have
+"                       these options turned on locally. I'm assuming noone
+"                       outthere wants foldcolumns and line numbers in the
+"                       MBE window? :)
+"                     o Fixed a bug where an empty MBE window was taking half
+"                       of the screen (partly why the MinHeight option was 
+"                       added.)
+"               6.2.1 o If MBE is the only window (because of :bd for example)
 "                       and there are still eligible buffers then one of them
 "                       will be displayed.
 "                     o The <Leader>mbe mapping now highlights the buffer from
@@ -332,7 +368,7 @@ endif
 " Display Mini Buf Explorer when there are 'More Than One' eligible buffers
 "
 if !exists('g:miniBufExplorerMoreThanOne')
-  let g:miniBufExplorerMoreThanOne = 1
+  let g:miniBufExplorerMoreThanOne = 2
 endif
 
 "
@@ -358,6 +394,15 @@ endif
 "
 if !exists('g:miniBufExplMaxHeight')
   let g:miniBufExplMaxHeight = 0
+endif
+
+"
+" When sizing the -MiniBufExplorer- window, assign a minumum window height.
+" the value is minimum number of lines for buffer. Setting this to zero can
+" cause strange height behavior. The default value is 1
+"
+if !exists('g:miniBufExplMinHeight')
+  let g:miniBufExplMinHeight = 1
 endif
 
 "
@@ -497,6 +542,11 @@ function! <SID>StartExplorer(sticky, delBufNum)
   " !!! We may want to make the following optional -- Bindu
   " We don't want the mouse to change focus without a click
   set nomousefocus
+
+  " If folks turn numbering and columns on by default we will turn 
+  " them off for the MBE window
+  setlocal foldcolumn=0
+  setlocal nonumber
  
   if has("syntax")
     syn match MBENormal             '\[[^\]]*\]'
@@ -541,6 +591,8 @@ function! <SID>StartExplorer(sticky, delBufNum)
 
   if (l:curBuf != -1)
     call search('\['.l:curBuf.':'.expand('#'.l:curBuf.':t').'\]')
+  else
+    call <SID>DEBUG('No current buffer to search for',9)
   endif
 
   let &report  = l:save_rep
@@ -740,7 +792,7 @@ function! <SID>ResizeWindow()
   let l:width  = winwidth('.')
   let l:length = strlen(getline('.'))
   let l:height = 0
-  if (l:width == 0 || l:length == 0)
+  if (l:width == 0)
     let l:height = winheight('.')
   else
     let l:height = (l:length / l:width) 
@@ -756,6 +808,13 @@ function! <SID>ResizeWindow()
       let l:height = g:miniBufExplMaxHeight
     endif
   endif
+
+  " enfore min window height
+  if l:height < g:miniBufExplMinHeight || l:height == 0
+    let l:height = g:miniBufExplMinHeight
+  endif
+
+  call <SID>DEBUG('ResizeWindow to '.l:height.' lines',9)
 
   exec('resize '.l:height)
 
@@ -883,12 +942,10 @@ function! <SID>HasEligibleBuffers(delBufNum)
   let l:i        = 0              " Set the buffer index to zero.
   let l:found    = 0              " No buffer found
 
-  if (g:miniBufExplorerMoreThanOne == 1)
+  if (g:miniBufExplorerMoreThanOne > 1)
     call <SID>DEBUG('More Than One mode turned on',6)
-    let l:needed = 2
-  else
-    let l:needed = 1
   endif
+  let l:needed = g:miniBufExplorerMoreThanOne
 
   " Loop through every buffer less than the total number of buffers.
   while(l:i <= l:NBuffers && l:found < l:needed)
@@ -943,7 +1000,7 @@ endfunction
 "
 function! <SID>AutoUpdate(delBufNum)
   call <SID>DEBUG('===========================',10)
-  call <SID>DEBUG('Entering AutoUpdate() : '.bufnr('%').' : '.bufname('%'),10)
+  call <SID>DEBUG('Entering AutoUpdate('.a:delBufNum.') : '.bufnr('%').' : '.bufname('%'),10)
   call <SID>DEBUG('===========================',10)
 
   if (g:miniBufExplInAutoUpdate == 1)
@@ -983,7 +1040,7 @@ function! <SID>AutoUpdate(delBufNum)
   " this allows us to stop updates on startup.
   if g:miniBufExplorerAutoUpdate == 1
     " Only show MiniBufExplorer if we have a real buffer
-    if bufnr('%') != -1 && bufname('%') != ""
+    if ((g:miniBufExplorerMoreThanOne == 0) || (bufnr('%') != -1 && bufname('%') != ""))
       if <SID>HasEligibleBuffers(a:delBufNum) == 1
         " if we don't have a window then create one
         let l:bufnr = <SID>FindWindow('-MiniBufExplorer-', 0)
@@ -1008,7 +1065,11 @@ function! <SID>AutoUpdate(delBufNum)
         call <SID>DEBUG('Failed in eligible check', 9)
         call <SID>StopExplorer(0)
       endif
+    else
+      call <SID>DEBUG('No buffers loaded...',9)
     endif
+  else
+    call <SID>DEBUG('AutoUpdates are turned off, terminating',9)
   endif
 
   call <SID>DEBUG('===========================',10)
