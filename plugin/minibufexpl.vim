@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <binduwavell@yahoo.com
 "          URL: http://www.wavell.net/vim/plugin/minibufexpl.vim
-"  Last Change: Tuesday, August 6, 2002
-"      Version: 6.0.8
+"  Last Change: Tuesday, September 17th, 2002
+"      Version: 6.0.9
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -115,7 +115,10 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.0.8 o Apparently some VIM builds are having a hard time with
+"      History: 6.0.9 o Double clicking tabs was overwriting the cliboard 
+"                       register on MS Windows.  Thanks to Shoeb Bhinderwala 
+"                       for reporting this issue.
+"               6.0.8 o Apparently some VIM builds are having a hard time with
 "                       line continuation in scripts so the few that were here
 "                       have been removed.
 "                     o Generalized FindExplorer and FindCreateExplorer so
@@ -868,7 +871,7 @@ function! <SID>GetSelectedBuffer()
 
   let l:save_reg = @"
   let @" = ""
-  normal yi[
+  normal ""yi[
   if @" != ""
     let l:retv = substitute(@",'\([0-9]*\):.*', '\1', '') + 0
     let @" = l:save_reg
@@ -877,6 +880,7 @@ function! <SID>GetSelectedBuffer()
     let @" = l:save_reg
     return -1
   endif
+  [asdf]
 
 endfunction
 
