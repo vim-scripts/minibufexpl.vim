@@ -12,8 +12,8 @@
 "  Description: Mini Buffer Explorer Vim Plugin
 "   Maintainer: Bindu Wavell <bindu@wavell.net>
 "          URL: http://vim.sourceforge.net/scripts/script.php?script_id=159
-"  Last Change: Thursday, March 16th, 2003
-"      Version: 6.2.0
+"  Last Change: Saturday, March 22, 2003
+"      Version: 6.2.1
 "               Derived from Jeff Lanzarotta's bufexplorer.vim version 6.0.7
 "               Jeff can be reached at (jefflanzarotta@yahoo.com) and the
 "               original plugin can be found at:
@@ -129,7 +129,18 @@
 "               are some cases where the window is opened more than once, there
 "               are other cases where an old debug window can be lost.
 "
-"      History: 6.2.0 o Major overhaul of autocommand and list updating code,
+"      History: 6.2.1 o If MBE is the only window (because of :bd for example)
+"                       and there are still eligible buffers then one of them
+"                       will be displayed.
+"                     o The <Leader>mbe mapping now highlights the buffer from
+"                       the current window.
+"                     o The delete ('d') binding in the MBE window now restors
+"                       the cursor position, which can help if you want to 
+"                       delete several buffers in a row that are not at the
+"                       beginning of the buffer list.
+"                     o Added a new key binding ('p') in the MBE window to 
+"                       switch to the previous window (last edit window)
+"               6.2.0 o Major overhaul of autocommand and list updating code,
 "                       we now have much better handling of :bd (which is the 
 "                       most requested feature.) As well as resolving other
 "                       issues where the buffer list would not be updated
@@ -463,6 +474,9 @@ function! <SID>StartExplorer(sticky, delBufNum)
     let g:miniBufExplorerAutoUpdate = 1
   endif
 
+  " Store the current buffer
+  let l:curBuf = bufnr('%')
+
   call <SID>FindCreateWindow('-MiniBufExplorer-', -1, 1, 1)
 
   " Make sure we are in our window
@@ -508,6 +522,9 @@ function! <SID>StartExplorer(sticky, delBufNum)
   " If you press d in the -MiniBufExplorer- then try to
   " delete the selected buffer.
   nnoremap <buffer> d :call <SID>MBEDeleteBuffer()<CR>:<BS>
+  " If you press w in the -MiniBufExplorer- then switch back
+  " to the previous window.
+  nnoremap <buffer> p :wincmd p<CR>:<BS>
   " The following allow us to use regular movement keys to 
   " scroll in a wrapped single line buffer
   nnoremap <buffer> j gj
@@ -521,6 +538,10 @@ function! <SID>StartExplorer(sticky, delBufNum)
   nnoremap <buffer> <S-TAB> :call search('\[[0-9]*:[^\]]*\]','b')<CR>:<BS>
  
   call <SID>DisplayBuffers(a:delBufNum)
+
+  if (l:curBuf != -1)
+    call search('\['.l:curBuf.':'.expand('#'.l:curBuf.':t').'\]')
+  endif
 
   let &report  = l:save_rep
   let &showcmd = l:save_sc
@@ -937,12 +958,21 @@ function! <SID>AutoUpdate(delBufNum)
 
   " Don't bother autoupdating the MBE window
   if (bufname('%') == '-MiniBufExplorer-')
-    call <SID>DEBUG('AutoUpdate does not run for the MBE window', 9)
+    " If this is the only buffer left then toggle the buffer
+    if (winbufnr(2) == -1)
+        call <SID>CycleBuffer(1)
+        call <SID>DEBUG('AutoUpdate does not run for cycled windows', 9)
+    else
+      call <SID>DEBUG('AutoUpdate does not run for the MBE window', 9)
+    endif
+
     call <SID>DEBUG('===========================',10)
     call <SID>DEBUG('Terminated AutoUpdate()'    ,10)
     call <SID>DEBUG('===========================',10)
+
     let g:miniBufExplInAutoUpdate = 0
     return
+
   endif
 
   if (a:delBufNum != -1)
@@ -1098,6 +1128,8 @@ function! <SID>MBEDeleteBuffer()
     return 
   endif
 
+  let l:curLine    = line('.')
+  let l:curCol     = virtcol('.')
   let l:selBuf     = <SID>GetSelectedBuffer()
   let l:selBufName = bufname(l:selBuf)
 
@@ -1177,6 +1209,7 @@ function! <SID>MBEDeleteBuffer()
 
     let g:miniBufExplorerAutoUpdate = l:saveAutoUpdate 
     call <SID>DisplayBuffers(-1)
+    call cursor(l:curLine, l:curCol)
 
   endif
 
